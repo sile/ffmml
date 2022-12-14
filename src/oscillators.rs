@@ -1,6 +1,6 @@
 use crate::types::{Detune, Note, Octave, Sample, Timbre};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Oscillator {
     PulseWave(PulseWave),
     // TriangleWave,
@@ -31,7 +31,7 @@ impl Oscillator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PulseWave {
     sample_rate: f32,
     frequency: f32,
