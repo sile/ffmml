@@ -1,12 +1,5 @@
 use std::ops::{Add, Mul};
 
-#[derive(Debug, Default, Clone)]
-pub struct Credits {
-    pub title: Option<String>,
-    pub composer: Option<String>,
-    pub programer: Option<String>,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct Sample(f32);
 
