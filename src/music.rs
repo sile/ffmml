@@ -1,6 +1,6 @@
 use crate::{
     channel::{Channel, ChannelName},
-    definitions::LineString,
+    definitions::{Composer, Programer, Title},
     macros::Macros,
 };
 use std::{collections::BTreeMap, path::Path};
@@ -8,20 +8,27 @@ use textparse::{components::Maybe, Parse, ParseError, ParseResult, Parser, Posit
 
 #[derive(Debug, Clone)]
 pub struct Music {
-    title: Maybe<LineString>,
-    //     pub composer: Option<String>,
-    //     pub programer: Option<String>,
-    // pub macros: Macros,
-    // pub channels: BTreeMap<ChannelName, Channel>,
+    title: Maybe<Title>,
+    composer: Maybe<Composer>,
+    programer: Maybe<Programer>, // pub macros: Macros,
+                                 // pub channels: BTreeMap<ChannelName, Channel>,
 }
 
 impl Music {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        todo!()
+    }
+
     pub fn title(&self) -> Option<&str> {
         self.title.get().map(|x| x.get())
     }
 
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
-        todo!()
+    pub fn composer(&self) -> Option<&str> {
+        self.composer.get().map(|x| x.get())
+    }
+
+    pub fn programer(&self) -> Option<&str> {
+        self.programer.get().map(|x| x.get())
     }
 }
 
@@ -37,6 +44,7 @@ impl std::str::FromStr for Music {
     }
 }
 
+// TODO: implement Error
 #[derive(Debug)]
 pub struct ParseMusicError {
     parser: Parser<'static>,

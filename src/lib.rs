@@ -4,6 +4,7 @@ pub mod macros;
 pub mod oscillators;
 pub mod types;
 
+mod comment;
 mod definitions;
 mod music;
 
