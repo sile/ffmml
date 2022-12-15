@@ -14,8 +14,8 @@ pub struct NoteCommand {
 }
 
 impl NoteCommand {
-    pub fn note(&self) -> &Note {
-        &self.note
+    pub fn note(&self) -> Note {
+        self.note
     }
 
     pub fn duration(&self) -> Option<&NoteDuration> {
