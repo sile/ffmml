@@ -44,6 +44,10 @@ impl Clocks {
         self.frame_clock
     }
 
+    pub fn sample_rate(&self) -> u16 {
+        self.sample_rate
+    }
+
     pub fn tick_sample_clock(&mut self) {
         self.sample_clock.tick(1, u64::from(self.sample_rate));
     }
@@ -69,6 +73,10 @@ impl Clocks {
 
     pub fn tick_frame_clock(&mut self) {
         self.frame_clock.tick(1, 10); // 100 ms
+    }
+
+    pub fn set_frame_clock(&mut self, clock: Clock) {
+        self.frame_clock = clock;
     }
 
     pub fn set_tempo(&mut self, tempo: Tempo) {

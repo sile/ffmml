@@ -1,5 +1,5 @@
 use crate::types::{Note, NoteDuration};
-use textparse::{components::Maybe, Parse, Span};
+use textparse::{Parse, Span};
 
 #[derive(Debug, Clone, Span, Parse)]
 #[parse(name = "command")]
@@ -10,7 +10,7 @@ pub enum Command {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct NoteCommand {
     note: Note,
-    duration: Maybe<NoteDuration>,
+    duration: NoteDuration,
 }
 
 impl NoteCommand {
@@ -18,7 +18,7 @@ impl NoteCommand {
         self.note
     }
 
-    pub fn duration(&self) -> Option<NoteDuration> {
-        self.duration.get().copied()
+    pub fn note_duration(&self) -> NoteDuration {
+        self.duration
     }
 }
