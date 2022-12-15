@@ -17,6 +17,7 @@ pub enum Command {
     DefaultNoteDuration(DefaultNoteDurationCommand),
     Tempo(TempoCommand),
     DataSkip(DataSkipCommand),
+    TrackLoop(TrackLoopCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -122,4 +123,9 @@ impl TimbreCommand {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct DataSkipCommand {
     _prefix: Char<'!'>,
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct TrackLoopCommand {
+    _prefix: Char<'L'>,
 }

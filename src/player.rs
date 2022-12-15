@@ -3,7 +3,7 @@ use crate::{
     clocks::Clocks,
     commands::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
-        OctaveCommand, TempoCommand, TimbreCommand, VolumeCommand,
+        OctaveCommand, TempoCommand, TimbreCommand, TrackLoopCommand, VolumeCommand,
     },
     oscillators::Oscillator,
     types::{Detune, Octave, Sample, Volume},
@@ -123,6 +123,7 @@ struct ChannelPlayer {
     detune: Detune,
     volume: Volume,
     clocks: Clocks,
+    loop_point: Option<usize>,
     last_error: Option<PlayMusicError>,
 }
 
@@ -136,6 +137,7 @@ impl ChannelPlayer {
             detune: Detune::default(),
             volume: Volume::default(),
             clocks: Clocks::new(sample_rate),
+            loop_point: None,
             last_error: None,
         }
     }
@@ -203,6 +205,14 @@ impl ChannelPlayer {
         self.command_index = self.commands.len();
         Ok(())
     }
+
+    fn handle_track_loop_command(
+        &mut self,
+        _command: TrackLoopCommand,
+    ) -> Result<(), PlayMusicError> {
+        self.loop_point = Some(self.command_index);
+        Ok(())
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -219,6 +229,10 @@ impl Iterator for ChannelPlayer {
             }
 
             let Some(command) = self.commands.get(self.command_index).cloned() else {
+                if let Some(i) = self.loop_point {
+                    self.command_index = i;
+                    continue;
+                }
                 return None;
             };
             self.command_index += 1;
@@ -232,6 +246,7 @@ impl Iterator for ChannelPlayer {
                 Command::DefaultNoteDuration(c) => self.handle_default_note_duration_command(c),
                 Command::Tempo(c) => self.handle_tempo_command(c),
                 Command::DataSkip(c) => self.handle_data_skip_command(c),
+                Command::TrackLoop(c) => self.handle_track_loop_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);
