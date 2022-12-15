@@ -7,10 +7,12 @@ use crate::{
     Music,
 };
 use std::collections::BTreeMap;
+use textparse::Span;
 
 #[derive(Debug)]
 pub struct MusicPlayer {
     channels: BTreeMap<ChannelName, ChannelPlayer>,
+    last_error: Option<PlayMusicError>,
 }
 
 impl MusicPlayer {
@@ -20,7 +22,24 @@ impl MusicPlayer {
             .into_iter()
             .map(|(name, channel)| (name, ChannelPlayer::new(channel, sample_rate)))
             .collect();
-        Self { channels }
+        Self {
+            channels,
+            last_error: None,
+        }
+    }
+
+    fn take_last_error(&mut self) -> Option<PlayMusicError> {
+        for (name, channel) in &mut self.channels {
+            if let Some(mut e) = channel.last_error.take() {
+                e.channel = *name;
+                return Some(e);
+            }
+        }
+        None
+    }
+
+    pub fn last_error(&self) -> Option<&PlayMusicError> {
+        self.last_error.as_ref()
     }
 
     // TODO: seek, position, duration
@@ -30,15 +49,25 @@ impl Iterator for MusicPlayer {
     type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.last_error.is_some() {
+            return None;
+        }
+
         let mut sample = None;
         for x in self.channels.values_mut().flat_map(|c| c.next()) {
             sample = Some(sample.unwrap_or(Sample::ZERO) + x);
         }
-        sample
+
+        if let Some(e) = self.take_last_error() {
+            self.last_error = Some(e);
+            None
+        } else {
+            sample
+        }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PlayMusicError {
     pub channel: ChannelName,
     pub command: Command,
@@ -52,6 +81,25 @@ impl PlayMusicError {
             command,
             reason: reason.to_string(),
         }
+    }
+
+    pub fn to_string(&self, text: &str, filename: Option<&str>) -> String {
+        let offset = self.command.start_position().get();
+        let (line, column) = self.command.start_position().line_and_column(text);
+        let mut s = format!("{} on channel {:?}\n", self.reason, self.channel);
+        s += &format!("  --> {}:{line}:{column}\n", filename.unwrap_or("<SCRIPT>"));
+
+        let line_len = format!("{line}").len();
+        s += &format!("{:line_len$} |\n", ' ');
+        s += &format!(
+            "{line} | {}\n",
+            text[offset + 1 - column..]
+                .lines()
+                .next()
+                .expect("unreachable")
+        );
+        s += &format!("{:line_len$} | {:>column$} {}\n", ' ', '^', self.reason);
+        s
     }
 }
 
