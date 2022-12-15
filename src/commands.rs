@@ -1,6 +1,8 @@
-use crate::types::{DefaultNoteDuration, Detune, Note, NoteDuration, Octave, Timbre, Volume};
+use crate::types::{
+    DefaultNoteDuration, Detune, Note, NoteDuration, Octave, Tempo, Timbre, Volume,
+};
 use textparse::{
-    components::{Char, Either, NonEmpty, StartsWith, StaticStr},
+    components::{Char, Either, StartsWith, StaticStr},
     Parse, Span,
 };
 
@@ -13,6 +15,7 @@ pub enum Command {
     Detune(DetuneCommand),
     Timbre(TimbreCommand),
     DefaultNoteDuration(DefaultNoteDurationCommand),
+    Tempo(TempoCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -40,6 +43,18 @@ pub struct DefaultNoteDurationCommand {
 impl DefaultNoteDurationCommand {
     pub fn default_note_duration(&self) -> DefaultNoteDuration {
         self.duration
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct TempoCommand {
+    _prefix: Char<'t'>,
+    tempo: Tempo,
+}
+
+impl TempoCommand {
+    pub fn tempo(&self) -> Tempo {
+        self.tempo
     }
 }
 
