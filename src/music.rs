@@ -1,34 +1,69 @@
 use crate::{
     channel::{Channel, ChannelName},
-    definitions::{Composer, Programer, Title},
+    comment::{Comment, MaybeComment},
+    definitions::{Composer, Definition, Programer, Title},
     macros::Macros,
 };
 use std::{collections::BTreeMap, path::Path};
-use textparse::{components::Maybe, Parse, ParseError, ParseResult, Parser, Position, Span};
+use textparse::{
+    components::{Either, Maybe, While, Whitespaces},
+    Parse, ParseError, ParseResult, Parser, Position, Span,
+};
 
 #[derive(Debug, Clone)]
 pub struct Music {
-    title: Maybe<Title>,
-    composer: Maybe<Composer>,
-    programer: Maybe<Programer>, // pub macros: Macros,
-                                 // pub channels: BTreeMap<ChannelName, Channel>,
+    title: Option<Title>,
+    composer: Option<Composer>,
+    programer: Option<Programer>, // pub macros: Macros,
+                                  // pub channels: BTreeMap<ChannelName, Channel>,
 }
 
 impl Music {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
-        todo!()
+        let mut title = None;
+        let mut composer = None;
+        let mut programer = None;
+
+        loop {
+            let _: While<Either<Whitespaces, Comment>> = parser.parse()?;
+            if parser.peek_char() != Some('#') {
+                break;
+            }
+            match parser.parse()? {
+                Definition::Title(x) => {
+                    title = Some(x);
+                }
+                Definition::Composer(x) => {
+                    composer = Some(x);
+                }
+                Definition::Programer(x) => {
+                    programer = Some(x);
+                }
+            }
+        }
+
+        let _: While<Either<Whitespaces, Comment>> = parser.parse()?;
+        if !parser.is_eos() {
+            return Err(ParseError);
+        }
+
+        Ok(Self {
+            title,
+            composer,
+            programer,
+        })
     }
 
     pub fn title(&self) -> Option<&str> {
-        self.title.get().map(|x| x.get())
+        self.title.as_ref().map(|x| x.get())
     }
 
     pub fn composer(&self) -> Option<&str> {
-        self.composer.get().map(|x| x.get())
+        self.composer.as_ref().map(|x| x.get())
     }
 
     pub fn programer(&self) -> Option<&str> {
-        self.programer.get().map(|x| x.get())
+        self.programer.as_ref().map(|x| x.get())
     }
 }
 

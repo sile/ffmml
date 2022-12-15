@@ -1,12 +1,11 @@
-use std::marker::PhantomData;
-
 use crate::comment::{Comment, MaybeComment};
+use std::marker::PhantomData;
 use textparse::{
     components::{Char, NonEmpty, OneOfThree, StartsWith, StaticStr, While},
-    Parse, ParseResult, Parser, Position, Span,
+    Parse, ParseError, ParseResult, Parser, Position, Span,
 };
 
-#[derive(Debug, Span)]
+#[derive(Debug, Clone, Span, Parse)]
 pub enum Definition {
     Title(Title),
     Composer(Composer),
@@ -93,6 +92,9 @@ impl<T: Parse> Parse for DefineString<T> {
                 break;
             }
             value.push(c);
+        }
+        if value.is_empty() {
+            return Err(ParseError);
         }
         Ok(Self {
             start,
