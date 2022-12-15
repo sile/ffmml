@@ -14,7 +14,13 @@ pub type MaybeComment = Either<Comment, Not<(Char<'/'>, Char<'*'>)>>;
 pub type CommentsOrWhitespaces = While<Either<Whitespace, Comment>>;
 
 #[derive(Debug, Clone, Span, Parse)]
-pub struct BlockComment((Char<'/'>, Char<'*'>), (AnyChar, Char<'*'>, Char<'/'>));
+pub struct BlockComment(
+    (Char<'/', false>, Char<'*'>),
+    (AnyChar, Char<'*'>, Char<'/'>),
+);
 
 #[derive(Debug, Clone, Span, Parse)]
-pub struct LineComment(Either<Char<';'>, Char<'/'>>, Until<Char<'\n'>>);
+pub struct LineComment(
+    Either<Char<';', false>, Char<'/', false>>,
+    Until<Char<'\n'>>,
+);
