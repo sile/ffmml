@@ -47,21 +47,17 @@ impl Mul<f32> for Sample {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Timbre(u8);
+#[derive(Debug, Clone, Copy, Span, Parse)]
+pub struct Timbre(U8);
 
 impl Timbre {
-    pub const DUTY_CYCLE_12: Self = Self(0);
-    pub const DUTY_CYCLE_25: Self = Self(1);
-    pub const DUTY_CYCLE_50: Self = Self(2);
-    pub const DUTY_CYCLE_75: Self = Self(3);
-
-    pub const fn new(n: u8) -> Self {
-        Self(n)
-    }
+    pub const DUTY_CYCLE_12: u8 = 0;
+    pub const DUTY_CYCLE_25: u8 = 1;
+    pub const DUTY_CYCLE_50: u8 = 2;
+    pub const DUTY_CYCLE_75: u8 = 3;
 
     pub const fn get(self) -> u8 {
-        self.0
+        self.0.get()
     }
 }
 
@@ -274,14 +270,14 @@ impl Parse for NonZeroU8 {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
-struct U8 {
+struct U8<const NAMED: bool = true> {
     start: Position,
     value: u8,
     end: Position,
 }
 
-impl U8 {
-    fn new(value: u8) -> Self {
+impl<const NAMED: bool> U8<NAMED> {
+    const fn new(value: u8) -> Self {
         Self {
             start: Position::new(0),
             value,
@@ -294,7 +290,7 @@ impl U8 {
     }
 }
 
-impl Parse for U8 {
+impl<const NAMED: bool> Parse for U8<NAMED> {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
         let start = parser.current_position();
         let mut value: u8 = 0;
@@ -313,7 +309,11 @@ impl Parse for U8 {
     }
 
     fn name() -> Option<fn() -> String> {
-        Some(|| "an integer between 0 and 255".to_owned())
+        if NAMED {
+            Some(|| "an integer between 0 and 255".to_owned())
+        } else {
+            None
+        }
     }
 }
 
@@ -334,7 +334,7 @@ impl Parse for I8 {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
         let start = parser.current_position();
         let minus = parser.parse::<Char<'-'>>().is_ok();
-        let mut value = i16::from(parser.parse::<U8>()?.get());
+        let mut value = i16::from(parser.parse::<U8<false>>()?.get());
         let end = parser.current_position();
 
         if minus {

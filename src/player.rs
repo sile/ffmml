@@ -1,7 +1,7 @@
 use crate::{
     channel::{Channel, ChannelName},
     clocks::Clocks,
-    commands::{Command, DetuneCommand, NoteCommand, OctaveCommand, VolumeCommand},
+    commands::{Command, DetuneCommand, NoteCommand, OctaveCommand, TimbreCommand, VolumeCommand},
     oscillators::Oscillator,
     types::{Detune, Octave, Sample, Volume},
     Music,
@@ -46,13 +46,13 @@ pub struct PlayMusicError {
 }
 
 impl PlayMusicError {
-    // fn new(command: Command, reason: &str) -> Self {
-    //     Self {
-    //         channel: ChannelName::A, // dummy initial value.
-    //         command,
-    //         reason: reason.to_string(),
-    //     }
-    // }
+    fn new(command: Command, reason: &str) -> Self {
+        Self {
+            channel: ChannelName::A, // dummy initial value.
+            command,
+            reason: reason.to_string(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -109,6 +109,17 @@ impl ChannelPlayer {
         self.detune = command.detune();
         Ok(())
     }
+
+    fn handle_timbre_command(&mut self, command: TimbreCommand) -> Result<(), PlayMusicError> {
+        if self.oscillator.set_timbre(command.timbre()) {
+            Ok(())
+        } else {
+            Err(PlayMusicError::new(
+                Command::Timbre(command),
+                "unsupported timbre value",
+            ))
+        }
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -130,6 +141,7 @@ impl Iterator for ChannelPlayer {
                 Command::Volume(c) => self.handle_volume_command(c),
                 Command::Octave(c) => self.handle_octave_command(c),
                 Command::Detune(c) => self.handle_detune_command(c),
+                Command::Timbre(c) => self.handle_timbre_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);

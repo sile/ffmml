@@ -50,7 +50,7 @@ impl PulseWave {
     fn new() -> Self {
         Self {
             frequency: 0.0, // dummy initial value
-            duty_cycle: 0.5,
+            duty_cycle: 0.125,
             phase: 0.0,
         }
     }
@@ -80,7 +80,7 @@ impl PulseWave {
     }
 
     fn set_timbre(&mut self, timbre: Timbre) -> bool {
-        self.duty_cycle = match timbre {
+        self.duty_cycle = match timbre.get() {
             Timbre::DUTY_CYCLE_12 => 0.125,
             Timbre::DUTY_CYCLE_25 => 0.250,
             Timbre::DUTY_CYCLE_50 => 0.500,

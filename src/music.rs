@@ -12,7 +12,6 @@ pub struct Music {
     composer: Option<Composer>,
     programer: Option<Programer>,
     channels: Channels, // pub macros: Macros,
-                        // comments: Vec<Comment>
 }
 
 impl Music {

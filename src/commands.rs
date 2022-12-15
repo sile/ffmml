@@ -1,4 +1,4 @@
-use crate::types::{Detune, Note, NoteDuration, Octave, Volume};
+use crate::types::{Detune, Note, NoteDuration, Octave, Timbre, Volume};
 use textparse::{
     components::{Char, Either, StartsWith, StaticStr},
     Parse, Span,
@@ -11,6 +11,7 @@ pub enum Command {
     Volume(VolumeCommand),
     Octave(OctaveCommand),
     Detune(DetuneCommand),
+    Timbre(TimbreCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -74,5 +75,17 @@ struct N255;
 impl StaticStr for N255 {
     fn static_str() -> &'static str {
         "255"
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct TimbreCommand {
+    _prefix: Char<'@'>,
+    timbre: Timbre,
+}
+
+impl TimbreCommand {
+    pub fn timbre(&self) -> Timbre {
+        self.timbre
     }
 }
