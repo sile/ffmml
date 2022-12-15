@@ -8,13 +8,13 @@ pub enum Oscillator {
 }
 
 impl Oscillator {
-    pub fn pulse_wave(sample_rate: u16) -> Self {
-        Self::PulseWave(PulseWave::new(sample_rate))
+    pub fn pulse_wave() -> Self {
+        Self::PulseWave(PulseWave::new())
     }
 
-    pub fn sample(&mut self) -> Sample {
+    pub fn sample(&mut self, sample_rate: u16) -> Sample {
         match self {
-            Oscillator::PulseWave(o) => o.sample(),
+            Oscillator::PulseWave(o) => o.sample(sample_rate),
         }
     }
 
@@ -33,24 +33,22 @@ impl Oscillator {
 
 #[derive(Debug, Clone)]
 pub struct PulseWave {
-    sample_rate: f32,
     frequency: f32,
     duty_cycle: f32,
     phase: f32,
 }
 
 impl PulseWave {
-    fn new(sample_rate: u16) -> Self {
+    fn new() -> Self {
         Self {
             frequency: 0.0, // dummy initial value
             duty_cycle: 0.5,
-            sample_rate: f32::from(sample_rate),
             phase: 0.0,
         }
     }
 
-    fn sample(&mut self) -> Sample {
-        self.phase += self.frequency / self.sample_rate;
+    fn sample(&mut self, sample_rate: u16) -> Sample {
+        self.phase += self.frequency / f32::from(sample_rate);
         self.phase -= self.phase.floor();
         if self.phase > self.duty_cycle {
             Sample::MAX

@@ -1,22 +1,17 @@
 use crate::{
-    channel::{Channel, ChannelName},
-    comment::Comment,
+    channel::Channels,
+    comment::CommentsOrWhitespaces,
     definitions::{Composer, Definition, Programer, Title},
 };
-use std::collections::BTreeMap;
-use textparse::{
-    components::{Either, NonEmpty, While, Whitespaces},
-    ParseError, ParseResult, Parser,
-};
+use textparse::{ParseResult, Parser};
 
 #[derive(Debug, Clone)]
 pub struct Music {
     title: Option<Title>,
     composer: Option<Composer>,
     programer: Option<Programer>,
-    channels: BTreeMap<ChannelName, Channel>,
-    // pub macros: Macros,
-    // comments: Vec<Comment>
+    channels: Channels, // pub macros: Macros,
+                        // comments: Vec<Comment>
 }
 
 impl Music {
@@ -25,7 +20,7 @@ impl Music {
         let mut composer = None;
         let mut programer = None;
         loop {
-            let _: While<Either<NonEmpty<Whitespaces>, Comment>> = parser.parse()?;
+            let _: CommentsOrWhitespaces = parser.parse()?;
             if parser.peek_char() != Some('#') {
                 break;
             }
@@ -43,12 +38,9 @@ impl Music {
             }
         }
 
-        let channels = BTreeMap::new();
-
-        let _: While<NonEmpty<Either<Whitespaces, Comment>>> = parser.parse()?;
-        if !parser.is_eos() {
-            return Err(ParseError);
-        }
+        let _: CommentsOrWhitespaces = parser.parse()?;
+        let mut channels = Channels::new();
+        channels.parse(parser)?;
 
         Ok(Self {
             title,
@@ -70,7 +62,7 @@ impl Music {
         self.programer.as_ref().map(|x| x.get())
     }
 
-    pub fn channels(&self) -> &BTreeMap<ChannelName, Channel> {
+    pub fn channels(&self) -> &Channels {
         &self.channels
     }
 }

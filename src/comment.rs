@@ -1,5 +1,5 @@
 use textparse::{
-    components::{AnyChar, Char, Either, Not, Until},
+    components::{AnyChar, Char, Either, Not, Until, While, Whitespace},
     Parse, Span,
 };
 
@@ -10,6 +10,8 @@ pub enum Comment {
 }
 
 pub type MaybeComment = Either<Comment, Not<(Char<'/'>, Char<'*'>)>>;
+
+pub type CommentsOrWhitespaces = While<Either<Whitespace, Comment>>;
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct BlockComment((Char<'/'>, Char<'*'>), (AnyChar, Char<'*'>, Char<'/'>));
