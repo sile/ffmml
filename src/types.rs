@@ -229,11 +229,7 @@ impl Parse for NoteDuration {
         let start = parser.current_position();
         let num = parser.parse()?;
         let dots = parser.parse()?;
-        if start == parser.current_position() {
-            Err(ParseError)
-        } else {
-            Ok(Self { num, dots })
-        }
+        Ok(Self { num, dots })
     }
 }
 
