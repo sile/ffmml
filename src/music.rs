@@ -1,21 +1,22 @@
 use crate::{
     channel::{Channel, ChannelName},
-    comment::{Comment, MaybeComment},
+    comment::Comment,
     definitions::{Composer, Definition, Programer, Title},
-    macros::Macros,
 };
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 use textparse::{
-    components::{Either, Maybe, While, Whitespaces},
-    Parse, ParseError, ParseResult, Parser, Position, Span,
+    components::{Either, NonEmpty, While, Whitespaces},
+    ParseError, ParseResult, Parser,
 };
 
 #[derive(Debug, Clone)]
 pub struct Music {
     title: Option<Title>,
     composer: Option<Composer>,
-    programer: Option<Programer>, // pub macros: Macros,
-                                  // pub channels: BTreeMap<ChannelName, Channel>,
+    programer: Option<Programer>,
+    channels: BTreeMap<ChannelName, Channel>,
+    // pub macros: Macros,
+    // comments: Vec<Comment>
 }
 
 impl Music {
@@ -23,12 +24,12 @@ impl Music {
         let mut title = None;
         let mut composer = None;
         let mut programer = None;
-
         loop {
-            let _: While<Either<Whitespaces, Comment>> = parser.parse()?;
+            let _: While<Either<NonEmpty<Whitespaces>, Comment>> = parser.parse()?;
             if parser.peek_char() != Some('#') {
                 break;
             }
+
             match parser.parse()? {
                 Definition::Title(x) => {
                     title = Some(x);
@@ -42,7 +43,9 @@ impl Music {
             }
         }
 
-        let _: While<Either<Whitespaces, Comment>> = parser.parse()?;
+        let channels = BTreeMap::new();
+
+        let _: While<NonEmpty<Either<Whitespaces, Comment>>> = parser.parse()?;
         if !parser.is_eos() {
             return Err(ParseError);
         }
@@ -51,6 +54,7 @@ impl Music {
             title,
             composer,
             programer,
+            channels,
         })
     }
 
@@ -64,6 +68,10 @@ impl Music {
 
     pub fn programer(&self) -> Option<&str> {
         self.programer.as_ref().map(|x| x.get())
+    }
+
+    pub fn channels(&self) -> &BTreeMap<ChannelName, Channel> {
+        &self.channels
     }
 }
 
@@ -84,4 +92,15 @@ impl std::str::FromStr for Music {
 pub struct ParseMusicError {
     parser: Parser<'static>,
     filename: Option<String>,
+}
+
+impl std::fmt::Display for ParseMusicError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = self
+            .parser
+            .error_message_builder()
+            .filename(self.filename.as_ref().map_or("<SCRIPT>", |s| s.as_str()))
+            .build();
+        write!(f, "{message}")
+    }
 }
