@@ -1,5 +1,5 @@
 use crate::types::{
-    DefaultNoteDuration, Detune, Note, NoteDuration, Octave, Tempo, Timbre, Volume,
+    DefaultNoteDuration, Detune, NonZeroU8, Note, NoteDuration, Octave, Tempo, Timbre, Volume,
 };
 use textparse::{
     components::{Char, Either, StartsWith, StaticStr},
@@ -18,6 +18,8 @@ pub enum Command {
     Tempo(TempoCommand),
     DataSkip(DataSkipCommand),
     TrackLoop(TrackLoopCommand),
+    RepeatStart(RepeatStartCommand),
+    RepeatEnd(RepeatEndCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -128,4 +130,21 @@ pub struct DataSkipCommand {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct TrackLoopCommand {
     _prefix: Char<'L'>,
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct RepeatStartCommand {
+    _prefix: Char<'['>,
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct RepeatEndCommand {
+    _prefix: Char<']'>,
+    count: NonZeroU8,
+}
+
+impl RepeatEndCommand {
+    pub fn count(self) -> usize {
+        usize::from(self.count.get())
+    }
 }

@@ -3,7 +3,8 @@ use crate::{
     clocks::Clocks,
     commands::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
-        OctaveCommand, TempoCommand, TimbreCommand, TrackLoopCommand, VolumeCommand,
+        OctaveCommand, RepeatEndCommand, RepeatStartCommand, TempoCommand, TimbreCommand,
+        TrackLoopCommand, VolumeCommand,
     },
     oscillators::Oscillator,
     types::{Detune, Octave, Sample, Volume},
@@ -124,6 +125,7 @@ struct ChannelPlayer {
     volume: Volume,
     clocks: Clocks,
     loop_point: Option<usize>,
+    repeat_stack: Vec<Repeat>,
     last_error: Option<PlayMusicError>,
 }
 
@@ -138,6 +140,7 @@ impl ChannelPlayer {
             volume: Volume::default(),
             clocks: Clocks::new(sample_rate),
             loop_point: None,
+            repeat_stack: Vec::new(),
             last_error: None,
         }
     }
@@ -213,6 +216,47 @@ impl ChannelPlayer {
         self.loop_point = Some(self.command_index);
         Ok(())
     }
+
+    fn handle_repeat_start_command(
+        &mut self,
+        command: RepeatStartCommand,
+    ) -> Result<(), PlayMusicError> {
+        let mut stack_size: isize = 1;
+        for command in &self.commands[self.command_index..] {
+            match command {
+                Command::RepeatStart(_) => stack_size += 1,
+                Command::RepeatEnd(_) => stack_size -= 1,
+                _ => {}
+            }
+        }
+        if stack_size > 0 {
+            return Err(PlayMusicError::new(
+                Command::RepeatStart(command),
+                "no maching ']' command",
+            ));
+        }
+
+        self.repeat_stack.push(Repeat::new(self.command_index));
+        Ok(())
+    }
+
+    fn handle_repeat_end_command(
+        &mut self,
+        command: RepeatEndCommand,
+    ) -> Result<(), PlayMusicError> {
+        let Some(mut repeat) = self.repeat_stack.pop() else {
+            return Err(PlayMusicError::new(
+                Command::RepeatEnd(command),
+                "no maching '[' command",
+            ));
+        };
+        if repeat.count < command.count() {
+            self.command_index = repeat.start_index;
+            repeat.count += 1;
+            self.repeat_stack.push(repeat);
+        }
+        Ok(())
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -247,11 +291,28 @@ impl Iterator for ChannelPlayer {
                 Command::Tempo(c) => self.handle_tempo_command(c),
                 Command::DataSkip(c) => self.handle_data_skip_command(c),
                 Command::TrackLoop(c) => self.handle_track_loop_command(c),
+                Command::RepeatStart(c) => self.handle_repeat_start_command(c),
+                Command::RepeatEnd(c) => self.handle_repeat_end_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);
             }
         }
         None
+    }
+}
+
+#[derive(Debug)]
+struct Repeat {
+    start_index: usize,
+    count: usize,
+}
+
+impl Repeat {
+    fn new(start_index: usize) -> Self {
+        Self {
+            start_index,
+            count: 1,
+        }
     }
 }

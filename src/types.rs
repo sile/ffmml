@@ -246,10 +246,10 @@ impl Parse for NoteDuration {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
-struct NonZeroU8(U8);
+pub struct NonZeroU8(U8);
 
 impl NonZeroU8 {
-    const fn get(self) -> u8 {
+    pub const fn get(self) -> u8 {
         self.0.value
     }
 }
