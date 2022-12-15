@@ -9,7 +9,7 @@ use crate::{
     types::{Detune, Octave, Sample, Volume},
     Music,
 };
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 use textparse::Span;
 
 #[derive(Debug)]
@@ -45,7 +45,15 @@ impl MusicPlayer {
         self.last_error.as_ref()
     }
 
-    // TODO: seek, position, duration
+    pub fn position(&self) -> Duration {
+        self.channels
+            .values()
+            .map(|c| c.clocks.sample_clock().now())
+            .max()
+            .unwrap_or_default()
+    }
+
+    // TODO: seek
 }
 
 impl Iterator for MusicPlayer {
@@ -138,6 +146,8 @@ impl ChannelPlayer {
         sample * self.volume.as_ratio()
     }
 
+    fn handle_frame(&mut self) {}
+
     fn handle_note_command(&mut self, command: NoteCommand) -> Result<(), PlayMusicError> {
         self.oscillator
             .set_frequency(command.note(), self.octave, self.detune);
@@ -192,6 +202,10 @@ impl Iterator for ChannelPlayer {
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.last_error.is_none() {
+            if self.clocks.tick_frame_clock_if_need() {
+                self.handle_frame();
+            }
+
             if self.clocks.sample_clock() < self.clocks.note_clock() {
                 return Some(self.sample());
             }

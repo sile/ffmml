@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::types::{DefaultNoteDuration, NoteDuration, Tempo};
 use num::rational::Ratio;
 
@@ -9,8 +11,12 @@ impl Clock {
         self.0 += Ratio::new(numer, denom);
     }
 
-    pub fn now(self) -> std::time::Duration {
-        std::time::Duration::from_secs_f64(*self.0.numer() as f64 / *self.0.denom() as f64)
+    pub fn now(self) -> Duration {
+        if let Ok(denom) = u32::try_from(*self.0.denom()) {
+            Duration::from_secs(*self.0.numer()) / denom
+        } else {
+            Duration::from_secs_f64(*self.0.numer() as f64 / *self.0.denom() as f64)
+        }
     }
 }
 
@@ -44,10 +50,6 @@ impl Clocks {
         self.note_clock
     }
 
-    pub fn frame_clock(&self) -> Clock {
-        self.frame_clock
-    }
-
     pub fn sample_rate(&self) -> u16 {
         self.sample_rate
     }
@@ -69,8 +71,16 @@ impl Clocks {
         }
     }
 
-    pub fn tick_frame_clock(&mut self) {
-        self.frame_clock.tick(1, 10); // 100 ms
+    pub fn tick_frame_clock_if_need(&mut self) -> bool {
+        let mut next_frame = self.frame_clock;
+        next_frame.tick(1, 10); // 100 ms
+
+        if next_frame < self.sample_clock {
+            false
+        } else {
+            self.frame_clock = next_frame;
+            true
+        }
     }
 
     pub fn set_frame_clock(&mut self, clock: Clock) {
