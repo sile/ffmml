@@ -18,7 +18,7 @@ impl NoteCommand {
         self.note
     }
 
-    pub fn duration(&self) -> Option<&NoteDuration> {
-        self.duration.get()
+    pub fn duration(&self) -> Option<NoteDuration> {
+        self.duration.get().copied()
     }
 }

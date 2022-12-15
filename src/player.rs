@@ -1,5 +1,6 @@
 use crate::{
     channel::{Channel, ChannelName},
+    clocks::Clocks,
     commands::{Command, NoteCommand},
     types::{Detune, Octave, Sample},
     Music,
@@ -46,6 +47,7 @@ struct ChannelPlayer {
     command_index: usize,
     octave: Octave,
     detune: Detune,
+    clocks: Clocks,
     last_error: Option<PlayMusicError>,
 }
 
@@ -57,6 +59,7 @@ impl ChannelPlayer {
             command_index: 0,
             octave: Octave::default(),
             detune: Detune::default(),
+            clocks: Clocks::new(sample_rate),
             last_error: None,
         }
     }
@@ -91,7 +94,10 @@ impl Iterator for ChannelPlayer {
                 self.last_error = Some(e);
                 None
             }
-            Ok(_) => todo!(),
+            Ok(_) => {
+                self.clocks.tick_sample_clock();
+                todo!()
+            }
         }
     }
 }

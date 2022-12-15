@@ -193,10 +193,35 @@ impl Parse for Note {
     }
 }
 
-#[derive(Debug, Clone, Span)]
+#[derive(Debug, Clone, Copy, Span, Parse)]
+pub struct DefaultNoteDuration(NonZeroU8);
+
+impl DefaultNoteDuration {
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+}
+
+impl Default for DefaultNoteDuration {
+    fn default() -> Self {
+        Self(NonZeroU8(U8::new(4)))
+    }
+}
+
+#[derive(Debug, Clone, Copy, Span)]
 pub struct NoteDuration {
     num: Maybe<NonZeroU8>,
     dots: While<Char<'.'>>,
+}
+
+impl NoteDuration {
+    pub fn get(self) -> Option<u8> {
+        self.num.get().map(|n| n.get())
+    }
+
+    pub fn dots(self) -> usize {
+        self.dots.utf8_len()
+    }
 }
 
 impl Parse for NoteDuration {
@@ -214,6 +239,12 @@ impl Parse for NoteDuration {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
 struct NonZeroU8(U8);
+
+impl NonZeroU8 {
+    const fn get(self) -> u8 {
+        self.0.value
+    }
+}
 
 impl Parse for NonZeroU8 {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
@@ -235,6 +266,16 @@ struct U8 {
     start: Position,
     value: u8,
     end: Position,
+}
+
+impl U8 {
+    fn new(value: u8) -> Self {
+        Self {
+            start: Position::new(0),
+            value,
+            end: Position::new(0),
+        }
+    }
 }
 
 impl Parse for U8 {
@@ -313,5 +354,20 @@ impl Detune {
 
     pub const fn get(self) -> i8 {
         self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Tempo(NonZeroU8);
+
+impl Tempo {
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+}
+
+impl Default for Tempo {
+    fn default() -> Self {
+        Self(NonZeroU8(U8::new(120)))
     }
 }
