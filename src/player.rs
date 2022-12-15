@@ -2,8 +2,8 @@ use crate::{
     channel::{Channel, ChannelName},
     clocks::Clocks,
     commands::{
-        Command, DefaultNoteDurationCommand, DetuneCommand, NoteCommand, OctaveCommand,
-        TempoCommand, TimbreCommand, VolumeCommand,
+        Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
+        OctaveCommand, TempoCommand, TimbreCommand, VolumeCommand,
     },
     oscillators::Oscillator,
     types::{Detune, Octave, Sample, Volume},
@@ -195,6 +195,14 @@ impl ChannelPlayer {
         self.clocks.set_tempo(command.tempo());
         Ok(())
     }
+
+    fn handle_data_skip_command(
+        &mut self,
+        _command: DataSkipCommand,
+    ) -> Result<(), PlayMusicError> {
+        self.command_index = self.commands.len();
+        Ok(())
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -223,6 +231,7 @@ impl Iterator for ChannelPlayer {
                 Command::Timbre(c) => self.handle_timbre_command(c),
                 Command::DefaultNoteDuration(c) => self.handle_default_note_duration_command(c),
                 Command::Tempo(c) => self.handle_tempo_command(c),
+                Command::DataSkip(c) => self.handle_data_skip_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);

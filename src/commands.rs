@@ -16,6 +16,7 @@ pub enum Command {
     Timbre(TimbreCommand),
     DefaultNoteDuration(DefaultNoteDurationCommand),
     Tempo(TempoCommand),
+    DataSkip(DataSkipCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -116,4 +117,9 @@ impl TimbreCommand {
     pub fn timbre(&self) -> Timbre {
         self.timbre
     }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct DataSkipCommand {
+    _prefix: Char<'!'>,
 }
