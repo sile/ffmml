@@ -3,8 +3,8 @@ use crate::{
     clocks::Clocks,
     commands::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
-        OctaveCommand, RepeatEndCommand, RepeatStartCommand, TempoCommand, TimbreCommand,
-        TrackLoopCommand, VolumeCommand,
+        OctaveCommand, RepeatEndCommand, RepeatStartCommand, RestSignCommand, TempoCommand,
+        TimbreCommand, TrackLoopCommand, VolumeCommand,
     },
     oscillators::Oscillator,
     types::{Detune, Octave, Sample, Volume},
@@ -126,6 +126,7 @@ struct ChannelPlayer {
     clocks: Clocks,
     loop_point: Option<usize>,
     repeat_stack: Vec<Repeat>,
+    silent: bool,
     last_error: Option<PlayMusicError>,
 }
 
@@ -141,14 +142,19 @@ impl ChannelPlayer {
             clocks: Clocks::new(sample_rate),
             loop_point: None,
             repeat_stack: Vec::new(),
+            silent: false,
             last_error: None,
         }
     }
 
     fn sample(&mut self) -> Sample {
         self.clocks.tick_sample_clock();
-        let sample = self.oscillator.sample(self.clocks.sample_rate());
-        sample * self.volume.as_ratio()
+        if self.silent {
+            Sample::ZERO
+        } else {
+            let sample = self.oscillator.sample(self.clocks.sample_rate());
+            sample * self.volume.as_ratio()
+        }
     }
 
     fn handle_frame(&mut self) {}
@@ -158,6 +164,14 @@ impl ChannelPlayer {
             .set_frequency(command.note(), self.octave, self.detune);
         self.clocks.tick_note_clock(command.note_duration());
         self.clocks.set_frame_clock(self.clocks.sample_clock());
+        self.silent = false;
+        Ok(())
+    }
+
+    fn handle_rest_sign_command(&mut self, command: RestSignCommand) -> Result<(), PlayMusicError> {
+        self.clocks.tick_note_clock(command.note_duration());
+        self.clocks.set_frame_clock(self.clocks.sample_clock());
+        self.silent = true;
         Ok(())
     }
 
@@ -293,6 +307,7 @@ impl Iterator for ChannelPlayer {
                 Command::TrackLoop(c) => self.handle_track_loop_command(c),
                 Command::RepeatStart(c) => self.handle_repeat_start_command(c),
                 Command::RepeatEnd(c) => self.handle_repeat_end_command(c),
+                Command::RestSign(c) => self.handle_rest_sign_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);

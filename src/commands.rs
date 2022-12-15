@@ -20,6 +20,7 @@ pub enum Command {
     TrackLoop(TrackLoopCommand),
     RepeatStart(RepeatStartCommand),
     RepeatEnd(RepeatEndCommand),
+    RestSign(RestSignCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -146,5 +147,17 @@ pub struct RepeatEndCommand {
 impl RepeatEndCommand {
     pub fn count(self) -> usize {
         usize::from(self.count.get())
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct RestSignCommand {
+    _prefix: Char<'r'>,
+    duration: NoteDuration,
+}
+
+impl RestSignCommand {
+    pub fn note_duration(&self) -> NoteDuration {
+        self.duration
     }
 }
