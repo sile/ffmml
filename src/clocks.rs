@@ -28,6 +28,7 @@ pub struct Clocks {
     sample_rate: u16,
     tempo: Tempo,
     default_note_duration: DefaultNoteDuration,
+    tuplet: Option<Tuplet>,
 }
 
 impl Clocks {
@@ -39,6 +40,7 @@ impl Clocks {
             sample_rate,
             tempo: Tempo::default(),
             default_note_duration: DefaultNoteDuration::default(),
+            tuplet: None,
         }
     }
 
@@ -59,6 +61,16 @@ impl Clocks {
     }
 
     pub fn tick_note_clock(&mut self, note_duration: NoteDuration) {
+        if let Some(tuplet) = &mut self.tuplet {
+            tuplet.remainings -= 1;
+            self.note_clock
+                .tick(*tuplet.duration.numer(), *tuplet.duration.denom());
+            if tuplet.remainings == 0 {
+                self.tuplet = None;
+            }
+            return;
+        }
+
         let duration = note_duration
             .get()
             .unwrap_or_else(|| self.default_note_duration.get());
@@ -94,4 +106,24 @@ impl Clocks {
     pub fn set_default_note_duration(&mut self, default: DefaultNoteDuration) {
         self.default_note_duration = default;
     }
+
+    pub fn set_tuplet(&mut self, note_count: usize, note_duration: NoteDuration) {
+        if note_count == 0 {
+            return;
+        }
+
+        let clock = std::mem::take(&mut self.note_clock);
+        self.tick_note_clock(note_duration);
+        let duration = std::mem::replace(&mut self.note_clock, clock).0;
+        self.tuplet = Some(Tuplet {
+            remainings: note_count,
+            duration: duration / note_count as u64,
+        });
+    }
+}
+
+#[derive(Debug)]
+struct Tuplet {
+    remainings: usize,
+    duration: Ratio<u64>,
 }

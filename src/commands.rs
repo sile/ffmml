@@ -25,6 +25,8 @@ pub enum Command {
     TrackLoop(TrackLoopCommand),
     RepeatStart(RepeatStartCommand),
     RepeatEnd(RepeatEndCommand),
+    TupletStart(TupletStartCommand),
+    TupletEnd(TupletEndCommand),
     RestSign(RestSignCommand),
     Wait(WaitCommand),
     Tie(TieCommand),
@@ -197,6 +199,23 @@ pub struct RepeatEndCommand {
 impl RepeatEndCommand {
     pub fn count(self) -> usize {
         usize::from(self.count.get())
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct TupletStartCommand {
+    _prefix: Char<'{'>,
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct TupletEndCommand {
+    _prefix: Char<'}'>,
+    duration: NoteDuration,
+}
+
+impl TupletEndCommand {
+    pub fn note_duration(&self) -> NoteDuration {
+        self.duration
     }
 }
 

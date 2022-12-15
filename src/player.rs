@@ -5,7 +5,8 @@ use crate::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
         OctaveCommand, OctaveDownCommand, OctaveUpCommand, RepeatEndCommand, RepeatStartCommand,
         RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TrackLoopCommand,
-        VolumeCommand, VolumeDownCommand, VolumeUpCommand, WaitCommand,
+        TupletEndCommand, TupletStartCommand, VolumeCommand, VolumeDownCommand, VolumeUpCommand,
+        WaitCommand,
     },
     oscillators::Oscillator,
     types::{Detune, Note, Octave, Sample, Volume},
@@ -329,14 +330,20 @@ impl ChannelPlayer {
         for command in &self.commands[self.command_index..] {
             match command {
                 Command::RepeatStart(_) => stack_size += 1,
-                Command::RepeatEnd(_) => stack_size -= 1,
+                Command::RepeatEnd(_) => {
+                    stack_size -= 1;
+                    if stack_size == 0 {
+                        break;
+                    }
+                }
+                Command::DataSkip(_) => break,
                 _ => {}
             }
         }
         if stack_size > 0 {
             return Err(PlayMusicError::new(
                 Command::RepeatStart(command),
-                "no maching ']' command",
+                "no maching ']'",
             ));
         }
 
@@ -351,7 +358,7 @@ impl ChannelPlayer {
         let Some(mut repeat) = self.repeat_stack.pop() else {
             return Err(PlayMusicError::new(
                 Command::RepeatEnd(command),
-                "no maching '[' command",
+                "no maching '['",
             ));
         };
         if repeat.count < command.count() {
@@ -360,6 +367,61 @@ impl ChannelPlayer {
             self.repeat_stack.push(repeat);
         }
         Ok(())
+    }
+
+    fn handle_tuplet_start_command(
+        &mut self,
+        command: TupletStartCommand,
+    ) -> Result<(), PlayMusicError> {
+        let mut note_count = 0;
+        for c in &self.commands[self.command_index..] {
+            match c {
+                Command::TupletStart(_) => {
+                    return Err(PlayMusicError::new(
+                        Command::TupletStart(command),
+                        "nested tuplet",
+                    ));
+                }
+                Command::TupletEnd(c) => {
+                    self.clocks.set_tuplet(note_count, c.note_duration());
+                    return Ok(());
+                }
+                Command::DataSkip(_) | Command::RepeatStart(_) | Command::RepeatEnd(_) => break,
+                Command::Note(_)
+                | Command::RestSign(_)
+                | Command::Wait(_)
+                | Command::Tie(_)
+                | Command::Slur(_) => {
+                    note_count += 1;
+                }
+                _ => {}
+            }
+        }
+        Err(PlayMusicError::new(
+            Command::TupletStart(command),
+            "no maching '}'",
+        ))
+    }
+
+    fn handle_tuplet_end_command(
+        &mut self,
+        command: TupletEndCommand,
+    ) -> Result<(), PlayMusicError> {
+        for c in self.commands[..self.command_index - 1].iter().rev() {
+            match c {
+                Command::TupletStart(_) => {
+                    return Ok(());
+                }
+                Command::TupletEnd(_) => {
+                    break;
+                }
+                _ => {}
+            }
+        }
+        Err(PlayMusicError::new(
+            Command::TupletEnd(command),
+            "no maching '{'",
+        ))
     }
 }
 
@@ -401,6 +463,8 @@ impl Iterator for ChannelPlayer {
                 Command::TrackLoop(c) => self.handle_track_loop_command(c),
                 Command::RepeatStart(c) => self.handle_repeat_start_command(c),
                 Command::RepeatEnd(c) => self.handle_repeat_end_command(c),
+                Command::TupletStart(c) => self.handle_tuplet_start_command(c),
+                Command::TupletEnd(c) => self.handle_tuplet_end_command(c),
                 Command::RestSign(c) => self.handle_rest_sign_command(c),
                 Command::Wait(c) => self.handle_wait_command(c),
                 Command::Tie(c) => self.handle_tie_command(c),
