@@ -1,9 +1,9 @@
 use crate::{
     channel::{Channel, ChannelName},
     clocks::Clocks,
-    commands::{Command, NoteCommand},
+    commands::{Command, NoteCommand, VolumeCommand},
     oscillators::Oscillator,
-    types::{Detune, Octave, Sample},
+    types::{Detune, Octave, Sample, Volume},
     Music,
 };
 use std::collections::BTreeMap;
@@ -48,6 +48,7 @@ struct ChannelPlayer {
     command_index: usize,
     octave: Octave,
     detune: Detune,
+    volume: Volume,
     clocks: Clocks,
     last_error: Option<PlayMusicError>,
 }
@@ -60,9 +61,16 @@ impl ChannelPlayer {
             command_index: 0,
             octave: Octave::default(),
             detune: Detune::default(),
+            volume: Volume::default(),
             clocks: Clocks::new(sample_rate),
             last_error: None,
         }
+    }
+
+    fn sample(&mut self) -> Sample {
+        self.clocks.tick_sample_clock();
+        let sample = self.oscillator.sample(self.clocks.sample_rate());
+        sample * self.volume.as_ratio()
     }
 
     fn handle_note_command(&mut self, command: NoteCommand) -> Result<(), PlayMusicError> {
@@ -76,6 +84,11 @@ impl ChannelPlayer {
         self.clocks.set_frame_clock(self.clocks.sample_clock());
         Ok(())
     }
+
+    fn handle_volume_command(&mut self, command: VolumeCommand) -> Result<(), PlayMusicError> {
+        self.volume = command.volume();
+        Ok(())
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -84,8 +97,7 @@ impl Iterator for ChannelPlayer {
     fn next(&mut self) -> Option<Self::Item> {
         while self.last_error.is_none() {
             if self.clocks.sample_clock() < self.clocks.note_clock() {
-                self.clocks.tick_sample_clock();
-                return Some(self.oscillator.sample(self.clocks.sample_rate()));
+                return Some(self.sample());
             }
 
             let Some(command) = self.commands.get(self.command_index).cloned() else {
@@ -95,6 +107,7 @@ impl Iterator for ChannelPlayer {
 
             let result = match command {
                 Command::Note(c) => self.handle_note_command(c),
+                Command::Volume(c) => self.handle_volume_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);

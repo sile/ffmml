@@ -289,14 +289,21 @@ impl U8 {
             end: Position::new(0),
         }
     }
+
+    const fn get(self) -> u8 {
+        self.value
+    }
 }
 
 impl Parse for U8 {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
         let start = parser.current_position();
-        let mut value = 0;
+        let mut value: u8 = 0;
         while let Ok(d) = parser.parse::<Digit>() {
-            value = d.value.checked_add(value).ok_or(ParseError)?;
+            value = value
+                .checked_mul(10)
+                .and_then(|v| v.checked_add(d.value))
+                .ok_or(ParseError)?;
         }
         let end = parser.current_position();
         if start == end {
@@ -370,7 +377,7 @@ impl Detune {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Span, Parse)]
 pub struct Tempo(NonZeroU8);
 
 impl Tempo {
@@ -382,5 +389,39 @@ impl Tempo {
 impl Default for Tempo {
     fn default() -> Self {
         Self(NonZeroU8(U8::new(120)))
+    }
+}
+
+#[derive(Debug, Clone, Copy, Span)]
+pub struct Volume(U8);
+
+impl Volume {
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+
+    pub fn as_ratio(self) -> f32 {
+        f32::from(self.get()) / 15.0
+    }
+}
+
+impl Parse for Volume {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let n: U8 = parser.parse()?;
+        if n.get() > 15 {
+            Err(ParseError)
+        } else {
+            Ok(Self(n))
+        }
+    }
+
+    fn name() -> Option<fn() -> String> {
+        Some(|| "an integer between 0 and 15".to_owned())
+    }
+}
+
+impl Default for Volume {
+    fn default() -> Self {
+        Self(U8::new(10))
     }
 }

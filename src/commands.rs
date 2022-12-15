@@ -1,10 +1,11 @@
-use crate::types::{Note, NoteDuration};
-use textparse::{Parse, Span};
+use crate::types::{Note, NoteDuration, Volume};
+use textparse::{components::Char, Parse, Span};
 
 #[derive(Debug, Clone, Span, Parse)]
 #[parse(name = "command")]
 pub enum Command {
     Note(NoteCommand),
+    Volume(VolumeCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -20,5 +21,17 @@ impl NoteCommand {
 
     pub fn note_duration(&self) -> NoteDuration {
         self.duration
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct VolumeCommand {
+    _prefix: Char<'v'>,
+    volume: Volume,
+}
+
+impl VolumeCommand {
+    pub fn volume(&self) -> Volume {
+        self.volume
     }
 }

@@ -1,5 +1,8 @@
 use crate::types::{Detune, Letter, Note, Octave, Sample, Timbre};
 
+const MASTER_CLOCK_HZ: f32 = 21477272.7272;
+const SYSTEM_CLOCK_HZ: f32 = MASTER_CLOCK_HZ / 12.0;
+
 #[derive(Debug, Clone)]
 pub enum Oscillator {
     PulseWave(PulseWave),
@@ -62,9 +65,7 @@ impl PulseWave {
         }
     }
 
-    fn set_frequency(&mut self, note: Note, octave: Octave, _detune: Detune) -> bool {
-        // TODO: handle detune
-        // https://wikiwiki.jp/mck/%E5%91%A8%E6%B3%A2%E6%95%B0%E3%81%A8%E3%83%AC%E3%82%B8%E3%82%B9%E3%82%BF%E3%81%AE%E9%96%A2%E4%BF%82
+    fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) -> bool {
         let mut o = i32::from(octave.get());
         if !matches!(note.letter(), Letter::A | Letter::B) {
             o -= 1;
@@ -72,6 +73,9 @@ impl PulseWave {
         let ratio = FREQUENCY_RATIO_TABLE[note.offset_from_a()];
         let a = 27.5 * 2f32.powi(o);
         self.frequency = a * ratio;
+        if detune.get() != 0 {
+            self.frequency -= (f32::from(detune.get()) * 16.0) / SYSTEM_CLOCK_HZ;
+        }
         true
     }
 
