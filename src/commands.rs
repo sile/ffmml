@@ -22,6 +22,8 @@ pub enum Command {
     RepeatEnd(RepeatEndCommand),
     RestSign(RestSignCommand),
     Wait(WaitCommand),
+    Tie(TieCommand),
+    Slur(SlurCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -173,4 +175,21 @@ impl WaitCommand {
     pub fn note_duration(&self) -> NoteDuration {
         self.duration
     }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct TieCommand {
+    _prefix: Char<'^'>,
+    duration: NoteDuration,
+}
+
+impl TieCommand {
+    pub fn note_duration(&self) -> NoteDuration {
+        self.duration
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct SlurCommand {
+    _prefix: Char<'&'>,
 }

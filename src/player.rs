@@ -3,8 +3,8 @@ use crate::{
     clocks::Clocks,
     commands::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
-        OctaveCommand, RepeatEndCommand, RepeatStartCommand, RestSignCommand, TempoCommand,
-        TimbreCommand, TrackLoopCommand, VolumeCommand, WaitCommand,
+        OctaveCommand, RepeatEndCommand, RepeatStartCommand, RestSignCommand, SlurCommand,
+        TempoCommand, TieCommand, TimbreCommand, TrackLoopCommand, VolumeCommand, WaitCommand,
     },
     oscillators::Oscillator,
     types::{Detune, Note, Octave, Sample, Volume},
@@ -184,6 +184,48 @@ impl ChannelPlayer {
         Ok(())
     }
 
+    fn handle_tie_command(&mut self, command: TieCommand) -> Result<(), PlayMusicError> {
+        if !matches!(
+            self.commands[self.command_index.saturating_sub(2)],
+            Command::Note(_)
+        ) {
+            return Err(PlayMusicError::new(
+                Command::Tie(command),
+                "'^' must follow a note command",
+            ));
+        }
+
+        self.clocks.tick_note_clock(command.note_duration());
+        Ok(())
+    }
+
+    fn handle_slur_command(&mut self, command: SlurCommand) -> Result<(), PlayMusicError> {
+        let Command::Note(before) = &self.commands[self.command_index.saturating_sub(2)] else {
+            return Err(PlayMusicError::new(
+                Command::Slur(command),
+                "'&' must follow a note command",
+            ));
+        };
+
+        let Some(Command::Note(after)) = self.commands.get(self.command_index) else {
+            return Err(PlayMusicError::new(
+                Command::Slur(command),
+                "mssing a note command after '&'",
+            ));
+        };
+        self.command_index += 1;
+
+        if before.note().normalize() != after.note().normalize() {
+            return Err(PlayMusicError::new(
+                Command::Slur(command),
+                "'&' cannot combine different notes",
+            ));
+        }
+
+        self.clocks.tick_note_clock(after.note_duration());
+        Ok(())
+    }
+
     fn handle_volume_command(&mut self, command: VolumeCommand) -> Result<(), PlayMusicError> {
         self.volume = command.volume();
         Ok(())
@@ -318,6 +360,8 @@ impl Iterator for ChannelPlayer {
                 Command::RepeatEnd(c) => self.handle_repeat_end_command(c),
                 Command::RestSign(c) => self.handle_rest_sign_command(c),
                 Command::Wait(c) => self.handle_wait_command(c),
+                Command::Tie(c) => self.handle_tie_command(c),
+                Command::Slur(c) => self.handle_slur_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);
