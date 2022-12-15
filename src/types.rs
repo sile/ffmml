@@ -377,6 +377,22 @@ impl Octave {
     pub const fn get(self) -> u8 {
         self.0.get()
     }
+
+    pub fn checked_add(self, n: u8) -> Option<Self> {
+        if self.get() + n <= 7 {
+            Some(Self(U8::new(self.get() + n)))
+        } else {
+            None
+        }
+    }
+
+    pub fn checked_sub(self, n: u8) -> Option<Self> {
+        if n <= self.get() - 2 {
+            Some(Self(U8::new(self.get() - n)))
+        } else {
+            None
+        }
+    }
 }
 
 impl Parse for Octave {

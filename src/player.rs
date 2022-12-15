@@ -3,8 +3,9 @@ use crate::{
     clocks::Clocks,
     commands::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
-        OctaveCommand, RepeatEndCommand, RepeatStartCommand, RestSignCommand, SlurCommand,
-        TempoCommand, TieCommand, TimbreCommand, TrackLoopCommand, VolumeCommand, WaitCommand,
+        OctaveCommand, OctaveDownCommand, OctaveUpCommand, RepeatEndCommand, RepeatStartCommand,
+        RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TrackLoopCommand,
+        VolumeCommand, WaitCommand,
     },
     oscillators::Oscillator,
     types::{Detune, Note, Octave, Sample, Volume},
@@ -236,6 +237,25 @@ impl ChannelPlayer {
         Ok(())
     }
 
+    fn handle_octave_up_command(&mut self, command: OctaveUpCommand) -> Result<(), PlayMusicError> {
+        self.octave = self
+            .octave
+            .checked_add(1)
+            .ok_or_else(|| PlayMusicError::new(Command::OctaveUp(command), "octave oveflow"))?;
+        Ok(())
+    }
+
+    fn handle_octave_down_command(
+        &mut self,
+        command: OctaveDownCommand,
+    ) -> Result<(), PlayMusicError> {
+        self.octave = self
+            .octave
+            .checked_sub(1)
+            .ok_or_else(|| PlayMusicError::new(Command::OctaveDown(command), "octave underflow"))?;
+        Ok(())
+    }
+
     fn handle_detune_command(&mut self, command: DetuneCommand) -> Result<(), PlayMusicError> {
         self.detune = command.detune();
         Ok(())
@@ -350,6 +370,8 @@ impl Iterator for ChannelPlayer {
                 Command::Note(c) => self.handle_note_command(c),
                 Command::Volume(c) => self.handle_volume_command(c),
                 Command::Octave(c) => self.handle_octave_command(c),
+                Command::OctaveUp(c) => self.handle_octave_up_command(c),
+                Command::OctaveDown(c) => self.handle_octave_down_command(c),
                 Command::Detune(c) => self.handle_detune_command(c),
                 Command::Timbre(c) => self.handle_timbre_command(c),
                 Command::DefaultNoteDuration(c) => self.handle_default_note_duration_command(c),

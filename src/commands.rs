@@ -12,6 +12,8 @@ pub enum Command {
     Note(NoteCommand),
     Volume(VolumeCommand),
     Octave(OctaveCommand),
+    OctaveUp(OctaveUpCommand),
+    OctaveDown(OctaveDownCommand),
     Detune(DetuneCommand),
     Timbre(TimbreCommand),
     DefaultNoteDuration(DefaultNoteDurationCommand),
@@ -88,6 +90,16 @@ impl OctaveCommand {
     pub fn octave(&self) -> Octave {
         self.octave
     }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct OctaveUpCommand {
+    _prefix: Char<'>'>,
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct OctaveDownCommand {
+    _prefix: Char<'<'>,
 }
 
 #[derive(Debug, Clone, Span, Parse)]
