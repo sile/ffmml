@@ -1,4 +1,4 @@
-use crate::types::{Note, NoteDuration, Volume};
+use crate::types::{Note, NoteDuration, Octave, Volume};
 use textparse::{components::Char, Parse, Span};
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -6,6 +6,7 @@ use textparse::{components::Char, Parse, Span};
 pub enum Command {
     Note(NoteCommand),
     Volume(VolumeCommand),
+    Octave(OctaveCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -33,5 +34,17 @@ pub struct VolumeCommand {
 impl VolumeCommand {
     pub fn volume(&self) -> Volume {
         self.volume
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct OctaveCommand {
+    _prefix: Char<'o'>,
+    octave: Octave,
+}
+
+impl OctaveCommand {
+    pub fn octave(&self) -> Octave {
+        self.octave
     }
 }

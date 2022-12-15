@@ -1,9 +1,9 @@
 use crate::{
     channel::{Channel, ChannelName},
     clocks::Clocks,
-    commands::{Command, NoteCommand, VolumeCommand},
+    commands::{Command, NoteCommand, OctaveCommand, VolumeCommand},
     oscillators::Oscillator,
-    types::{Detune, Octave, Sample, Volume},
+    types::{Detune, Note, Octave, Sample, Volume},
     Music,
 };
 use std::collections::BTreeMap;
@@ -39,7 +39,21 @@ impl Iterator for MusicPlayer {
 }
 
 #[derive(Debug)]
-pub struct PlayMusicError;
+pub struct PlayMusicError {
+    pub channel: ChannelName,
+    pub command: Command,
+    pub reason: String,
+}
+
+impl PlayMusicError {
+    fn new(command: Command, reason: &str) -> Self {
+        Self {
+            channel: ChannelName::A, // dummy initial value.
+            command,
+            reason: reason.to_string(),
+        }
+    }
+}
 
 #[derive(Debug)]
 struct ChannelPlayer {
@@ -74,12 +88,8 @@ impl ChannelPlayer {
     }
 
     fn handle_note_command(&mut self, command: NoteCommand) -> Result<(), PlayMusicError> {
-        if !self
-            .oscillator
-            .set_frequency(command.note(), self.octave, self.detune)
-        {
-            panic!("bug");
-        }
+        self.oscillator
+            .set_frequency(command.note(), self.octave, self.detune);
         self.clocks.tick_note_clock(command.note_duration());
         self.clocks.set_frame_clock(self.clocks.sample_clock());
         Ok(())
@@ -87,6 +97,11 @@ impl ChannelPlayer {
 
     fn handle_volume_command(&mut self, command: VolumeCommand) -> Result<(), PlayMusicError> {
         self.volume = command.volume();
+        Ok(())
+    }
+
+    fn handle_octave_command(&mut self, command: OctaveCommand) -> Result<(), PlayMusicError> {
+        self.octave = command.octave();
         Ok(())
     }
 }
@@ -108,6 +123,7 @@ impl Iterator for ChannelPlayer {
             let result = match command {
                 Command::Note(c) => self.handle_note_command(c),
                 Command::Volume(c) => self.handle_volume_command(c),
+                Command::Octave(c) => self.handle_octave_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);

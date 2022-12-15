@@ -21,7 +21,7 @@ impl Oscillator {
         }
     }
 
-    pub fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) -> bool {
+    pub fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
         match self {
             Oscillator::PulseWave(o) => o.set_frequency(note, octave, detune),
         }
@@ -65,7 +65,7 @@ impl PulseWave {
         }
     }
 
-    fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) -> bool {
+    fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
         let mut o = i32::from(octave.get());
         if !matches!(note.letter(), Letter::A | Letter::B) {
             o -= 1;
@@ -76,7 +76,6 @@ impl PulseWave {
         if detune.get() != 0 {
             self.frequency -= (f32::from(detune.get()) * 16.0) / SYSTEM_CLOCK_HZ;
         }
-        true
     }
 
     fn set_timbre(&mut self, timbre: Timbre) -> bool {

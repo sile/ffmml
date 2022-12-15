@@ -338,29 +338,33 @@ impl Parse for Digit {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Octave(u8);
+#[derive(Debug, Clone, Copy, Span)]
+pub struct Octave(U8);
 
 impl Octave {
-    pub const MIN: Self = Self(2);
-    pub const MAX: Self = Self(7);
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+}
 
-    pub fn new(octave: u8) -> Option<Self> {
-        if (Self::MIN.0..=Self::MAX.0).contains(&octave) {
-            Some(Self(octave))
+impl Parse for Octave {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let n: U8 = parser.parse()?;
+        if 2 <= n.get() && n.get() <= 7 {
+            Ok(Self(n))
         } else {
-            None
+            Err(ParseError)
         }
     }
 
-    pub const fn get(self) -> u8 {
-        self.0
+    fn name() -> Option<fn() -> String> {
+        Some(|| "an integer between 2 and 7".to_owned())
     }
 }
 
 impl Default for Octave {
     fn default() -> Self {
-        Self(4)
+        Self(U8::new(4))
     }
 }
 

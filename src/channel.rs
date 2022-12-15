@@ -38,6 +38,7 @@ impl Channels {
             let _: Space = parser.parse()?;
             let _: CommentsOrWhitespaces = parser.parse()?;
 
+            let mut has_space = false;
             while let Ok(command) = parser.parse::<Command>() {
                 for name in &names {
                     self.0
@@ -47,11 +48,13 @@ impl Channels {
                         .push(command.clone());
                 }
 
-                if parser.peek::<ChannelNames>().is_ok() {
-                    let _: Space = parser.parse()?; // Always fails.
-                }
+                let space: CommentsOrWhitespaces = parser.parse()?;
+                has_space = !space.is_empty();
+            }
 
-                let _: CommentsOrWhitespaces = parser.parse()?;
+            if !has_space && !parser.is_eos() {
+                // Needs spaces before channel names.
+                return Err(ParseError);
             }
         }
         Ok(())
