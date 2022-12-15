@@ -1,5 +1,10 @@
 use std::ops::{Add, Mul};
 
+use textparse::{
+    components::{Char, Either, Maybe, While},
+    Parse, ParseError, ParseResult, Parser, Position, Span,
+};
+
 #[derive(Debug, Clone, Copy)]
 pub struct Sample(f32);
 
@@ -95,37 +100,30 @@ impl Letter {
             Letter::B => Letter::A,
         }
     }
+
+    fn from_char(c: char) -> Option<Self> {
+        Some(match c {
+            'c' => Self::C,
+            'd' => Self::D,
+            'e' => Self::E,
+            'f' => Self::F,
+            'g' => Self::G,
+            'a' => Self::A,
+            'b' => Self::B,
+            _ => return None,
+        })
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
 pub struct Note {
+    start: Position,
     letter: Letter,
     accidentals: i8,
+    end: Position,
 }
 
 impl Note {
-    pub const C: Self = Note::new(Letter::C);
-    pub const D: Self = Note::new(Letter::D);
-    pub const E: Self = Note::new(Letter::E);
-    pub const F: Self = Note::new(Letter::F);
-    pub const G: Self = Note::new(Letter::G);
-    pub const A: Self = Note::new(Letter::A);
-    pub const B: Self = Note::new(Letter::B);
-
-    pub const fn new(letter: Letter) -> Self {
-        Self {
-            letter,
-            accidentals: 0,
-        }
-    }
-
-    pub const fn with_accidentals(letter: Letter, accidentals: i8) -> Self {
-        Self {
-            letter,
-            accidentals: accidentals % 12,
-        }
-    }
-
     pub const fn letter(self) -> Letter {
         self.letter
     }
@@ -168,14 +166,114 @@ impl Note {
         assert!(self.accidentals == 0 || self.accidentals == 1);
         (self.letter, self.accidentals == 1)
     }
+}
 
-    // TODO: private
-    pub fn add_sharp(&mut self) {
-        self.accidentals = (self.accidentals + 1) % 12;
+impl Parse for Note {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let start = parser.current_position();
+        let letter = parser
+            .read_char()
+            .and_then(Letter::from_char)
+            .ok_or(ParseError)?;
+        let mut accidentals = 0;
+        while let Ok(x) = parser.parse::<Either<Char<'+'>, Char<'-'>>>() {
+            if matches!(x, Either::A(_)) {
+                accidentals = (accidentals + 1) % 12;
+            } else {
+                accidentals = (accidentals - 1) % 12;
+            }
+        }
+        let end = parser.current_position();
+        Ok(Self {
+            start,
+            letter,
+            accidentals,
+            end,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Span)]
+pub struct NoteDuration {
+    num: Maybe<NonZeroU8>,
+    dots: While<Char<'.'>>,
+}
+
+impl Parse for NoteDuration {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let start = parser.current_position();
+        let num = parser.parse()?;
+        let dots = parser.parse()?;
+        if start == parser.current_position() {
+            Err(ParseError)
+        } else {
+            Ok(Self { num, dots })
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
+struct NonZeroU8(U8);
+
+impl Parse for NonZeroU8 {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let n = parser.parse::<U8>()?;
+        if n.value > 0 {
+            Ok(Self(n))
+        } else {
+            Err(ParseError)
+        }
     }
 
-    pub fn add_flat(&mut self) {
-        self.accidentals = (self.accidentals - 1) % 12;
+    fn name() -> Option<fn() -> String> {
+        Some(|| "an integer between 1 and 255".to_owned())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
+struct U8 {
+    start: Position,
+    value: u8,
+    end: Position,
+}
+
+impl Parse for U8 {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let start = parser.current_position();
+        let mut value = 0;
+        while let Ok(d) = parser.parse::<Digit>() {
+            value = d.value.checked_add(value).ok_or(ParseError)?;
+        }
+        let end = parser.current_position();
+        if start == end {
+            Err(ParseError)
+        } else {
+            Ok(Self { start, value, end })
+        }
+    }
+
+    fn name() -> Option<fn() -> String> {
+        Some(|| "an integer between 0 and 255".to_owned())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
+struct Digit {
+    start: Position,
+    value: u8,
+    end: Position,
+}
+
+impl Parse for Digit {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let c = parser.peek_char().ok_or(ParseError)?;
+        if matches!(c, '0'..='9') {
+            let (start, end) = parser.consume_chars(1);
+            let value = c.to_digit(10).expect("unreachable") as u8;
+            Ok(Self { start, value, end })
+        } else {
+            Err(ParseError)
+        }
     }
 }
 

@@ -17,6 +17,7 @@ impl Channels {
         let channels = [
             (ChannelName::A, Channel::new(Oscillator::pulse_wave())),
             (ChannelName::B, Channel::new(Oscillator::pulse_wave())),
+            // TODO
             // (
             //     ChannelName::C,
             //     Channel::new(Oscillator::triangle_wave(44100)),
@@ -35,10 +36,23 @@ impl Channels {
                 .check_if_defined(parser, &self)?
                 .names;
             let _: Space = parser.parse()?;
-
-            // TODO: parse comand
-
             let _: CommentsOrWhitespaces = parser.parse()?;
+
+            while let Ok(command) = parser.parse::<Command>() {
+                for name in &names {
+                    self.0
+                        .get_mut(name)
+                        .expect("unreachable")
+                        .commands
+                        .push(command.clone());
+                }
+
+                if parser.peek::<ChannelNames>().is_ok() {
+                    let _: Space = parser.parse()?; // Always fails.
+                }
+
+                let _: CommentsOrWhitespaces = parser.parse()?;
+            }
         }
         Ok(())
     }
