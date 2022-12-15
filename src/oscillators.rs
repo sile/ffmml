@@ -1,4 +1,4 @@
-use crate::types::{Detune, Note, Octave, Sample, Timbre};
+use crate::types::{Detune, Letter, Note, Octave, Sample, Timbre};
 
 #[derive(Debug, Clone)]
 pub enum Oscillator {
@@ -65,8 +65,12 @@ impl PulseWave {
     fn set_frequency(&mut self, note: Note, octave: Octave, _detune: Detune) -> bool {
         // TODO: handle detune
         // https://wikiwiki.jp/mck/%E5%91%A8%E6%B3%A2%E6%95%B0%E3%81%A8%E3%83%AC%E3%82%B8%E3%82%B9%E3%82%BF%E3%81%AE%E9%96%A2%E4%BF%82
+        let mut o = i32::from(octave.get());
+        if !matches!(note.letter(), Letter::A | Letter::B) {
+            o -= 1;
+        }
         let ratio = FREQUENCY_RATIO_TABLE[note.offset_from_a()];
-        let a = 27.5 * 2f32.powi(i32::from(octave.get()));
+        let a = 27.5 * 2f32.powi(o);
         self.frequency = a * ratio;
         true
     }
