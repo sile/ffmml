@@ -167,8 +167,9 @@ impl Note {
             } else if matches!(self.letter, Letter::C | Letter::F) && self.accidentals <= -1 {
                 self.letter = self.letter.prev();
                 self.accidentals += 1;
+            } else {
+                break;
             }
-            break;
         }
 
         if self.accidentals < 0 {
