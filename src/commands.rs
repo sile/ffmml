@@ -1,5 +1,8 @@
-use crate::types::{Note, NoteDuration, Octave, Volume};
-use textparse::{components::Char, Parse, Span};
+use crate::types::{Detune, Note, NoteDuration, Octave, Volume};
+use textparse::{
+    components::{Char, Either, StartsWith, StaticStr},
+    Parse, Span,
+};
 
 #[derive(Debug, Clone, Span, Parse)]
 #[parse(name = "command")]
@@ -7,6 +10,7 @@ pub enum Command {
     Note(NoteCommand),
     Volume(VolumeCommand),
     Octave(OctaveCommand),
+    Detune(DetuneCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -46,5 +50,29 @@ pub struct OctaveCommand {
 impl OctaveCommand {
     pub fn octave(&self) -> Octave {
         self.octave
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct DetuneCommand {
+    _prefix: Char<'D'>,
+    detune: Either<StartsWith<N255>, Detune>,
+}
+
+impl DetuneCommand {
+    pub fn detune(&self) -> Detune {
+        match self.detune {
+            Either::A(_) => Detune::default(),
+            Either::B(d) => d,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct N255;
+
+impl StaticStr for N255 {
+    fn static_str() -> &'static str {
+        "255"
     }
 }

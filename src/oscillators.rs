@@ -74,7 +74,8 @@ impl PulseWave {
         let a = 27.5 * 2f32.powi(o);
         self.frequency = a * ratio;
         if detune.get() != 0 {
-            self.frequency -= (f32::from(detune.get()) * 16.0) / SYSTEM_CLOCK_HZ;
+            let d = f32::from(detune.get());
+            self.frequency = register_to_frequency(frequency_to_register(self.frequency) - d);
         }
     }
 
@@ -88,4 +89,12 @@ impl PulseWave {
         };
         true
     }
+}
+
+fn frequency_to_register(frequency: f32) -> f32 {
+    SYSTEM_CLOCK_HZ / frequency / 16.0
+}
+
+fn register_to_frequency(register: f32) -> f32 {
+    SYSTEM_CLOCK_HZ / 16.0 / register
 }

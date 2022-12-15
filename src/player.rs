@@ -1,9 +1,9 @@
 use crate::{
     channel::{Channel, ChannelName},
     clocks::Clocks,
-    commands::{Command, NoteCommand, OctaveCommand, VolumeCommand},
+    commands::{Command, DetuneCommand, NoteCommand, OctaveCommand, VolumeCommand},
     oscillators::Oscillator,
-    types::{Detune, Note, Octave, Sample, Volume},
+    types::{Detune, Octave, Sample, Volume},
     Music,
 };
 use std::collections::BTreeMap;
@@ -46,13 +46,13 @@ pub struct PlayMusicError {
 }
 
 impl PlayMusicError {
-    fn new(command: Command, reason: &str) -> Self {
-        Self {
-            channel: ChannelName::A, // dummy initial value.
-            command,
-            reason: reason.to_string(),
-        }
-    }
+    // fn new(command: Command, reason: &str) -> Self {
+    //     Self {
+    //         channel: ChannelName::A, // dummy initial value.
+    //         command,
+    //         reason: reason.to_string(),
+    //     }
+    // }
 }
 
 #[derive(Debug)]
@@ -104,6 +104,11 @@ impl ChannelPlayer {
         self.octave = command.octave();
         Ok(())
     }
+
+    fn handle_detune_command(&mut self, command: DetuneCommand) -> Result<(), PlayMusicError> {
+        self.detune = command.detune();
+        Ok(())
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -124,6 +129,7 @@ impl Iterator for ChannelPlayer {
                 Command::Note(c) => self.handle_note_command(c),
                 Command::Volume(c) => self.handle_volume_command(c),
                 Command::Octave(c) => self.handle_octave_command(c),
+                Command::Detune(c) => self.handle_detune_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);

@@ -243,7 +243,6 @@ impl NoteDuration {
 
 impl Parse for NoteDuration {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
-        let start = parser.current_position();
         let num = parser.parse()?;
         let dots = parser.parse()?;
         Ok(Self { num, dots })
@@ -318,6 +317,38 @@ impl Parse for U8 {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Span)]
+struct I8 {
+    start: Position,
+    value: i8,
+    end: Position,
+}
+
+impl I8 {
+    const fn get(self) -> i8 {
+        self.value
+    }
+}
+
+impl Parse for I8 {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let start = parser.current_position();
+        let minus = parser.parse::<Char<'-'>>().is_ok();
+        let mut value = i16::from(parser.parse::<U8>()?.get());
+        let end = parser.current_position();
+
+        if minus {
+            value = -value;
+        }
+        let value = i8::try_from(value).map_err(|_| ParseError)?;
+        Ok(Self { start, value, end })
+    }
+
+    fn name() -> Option<fn() -> String> {
+        Some(|| "an integer between -127 and 126".to_owned())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
 struct Digit {
     start: Position,
@@ -368,16 +399,12 @@ impl Default for Octave {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Detune(i8);
+#[derive(Debug, Default, Clone, Copy, Span, Parse)]
+pub struct Detune(I8);
 
 impl Detune {
-    pub const fn new(detune: i8) -> Self {
-        Self(detune)
-    }
-
     pub const fn get(self) -> i8 {
-        self.0
+        self.0.get()
     }
 }
 
