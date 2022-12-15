@@ -1,8 +1,9 @@
 use crate::types::{
-    DefaultNoteDuration, Detune, NonZeroU8, Note, NoteDuration, Octave, Tempo, Timbre, Volume,
+    DefaultNoteDuration, Detune, Digit, NonZeroU4, NonZeroU8, Note, NoteDuration, Octave, Tempo,
+    Timbre, Volume,
 };
 use textparse::{
-    components::{Char, Either, StartsWith, StaticStr},
+    components::{Char, Either, Not, StartsWith, StaticStr},
     Parse, Span,
 };
 
@@ -11,6 +12,8 @@ use textparse::{
 pub enum Command {
     Note(NoteCommand),
     Volume(VolumeCommand),
+    VolumeUp(VolumeUpCommand),
+    VolumeDown(VolumeDownCommand),
     Octave(OctaveCommand),
     OctaveUp(OctaveUpCommand),
     OctaveDown(OctaveDownCommand),
@@ -77,6 +80,38 @@ pub struct VolumeCommand {
 impl VolumeCommand {
     pub fn volume(&self) -> Volume {
         self.volume
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct VolumeUpCommand {
+    _prefix0: Char<'v'>,
+    _prefix1: Char<'+'>,
+    count: Either<NonZeroU4, Not<Digit>>,
+}
+
+impl VolumeUpCommand {
+    pub fn count(&self) -> u8 {
+        match self.count {
+            Either::A(x) => x.get(),
+            Either::B(_) => 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct VolumeDownCommand {
+    _prefix0: Char<'v'>,
+    _prefix1: Char<'-'>,
+    count: Either<NonZeroU4, Not<Digit>>,
+}
+
+impl VolumeDownCommand {
+    pub fn count(&self) -> u8 {
+        match self.count {
+            Either::A(x) => x.get(),
+            Either::B(_) => 1,
+        }
     }
 }
 

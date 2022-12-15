@@ -246,7 +246,55 @@ impl Parse for NoteDuration {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
+#[derive(Debug, Clone, Copy, Span)]
+pub struct U4(U8);
+
+impl U4 {
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+}
+
+impl Parse for U4 {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let n: U8 = parser.parse()?;
+        if n.get() < 16 {
+            Ok(Self(n))
+        } else {
+            Err(ParseError)
+        }
+    }
+
+    fn name() -> Option<fn() -> String> {
+        Some(|| "an integer betwen 0 and 15".to_owned())
+    }
+}
+
+#[derive(Debug, Clone, Copy, Span)]
+pub struct NonZeroU4(U8);
+
+impl NonZeroU4 {
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+}
+
+impl Parse for NonZeroU4 {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let n: U8 = parser.parse()?;
+        if 0 < n.get() && n.get() < 16 {
+            Ok(Self(n))
+        } else {
+            Err(ParseError)
+        }
+    }
+
+    fn name() -> Option<fn() -> String> {
+        Some(|| "an integer betwen 1 and 15".to_owned())
+    }
+}
+
+#[derive(Debug, Clone, Copy, Span)]
 pub struct NonZeroU8(U8);
 
 impl NonZeroU8 {
@@ -351,7 +399,7 @@ impl Parse for I8 {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
-struct Digit {
+pub struct Digit {
     start: Position,
     value: u8,
     end: Position,
@@ -379,7 +427,7 @@ impl Octave {
     }
 
     pub fn checked_add(self, n: u8) -> Option<Self> {
-        if self.get() + n <= 7 {
+        if self.get().saturating_add(n) <= 7 {
             Some(Self(U8::new(self.get() + n)))
         } else {
             None
@@ -446,6 +494,18 @@ pub struct Volume(U8);
 impl Volume {
     pub const fn get(self) -> u8 {
         self.0.get()
+    }
+
+    pub fn checked_add(self, n: u8) -> Option<Self> {
+        if self.get().saturating_add(n) <= 15 {
+            Some(Self(U8::new(self.get() + n)))
+        } else {
+            None
+        }
+    }
+
+    pub fn checked_sub(self, n: u8) -> Option<Self> {
+        self.get().checked_sub(n).map(|n| Self(U8::new(n)))
     }
 
     pub fn as_ratio(self) -> f32 {

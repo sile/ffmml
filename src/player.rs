@@ -5,7 +5,7 @@ use crate::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
         OctaveCommand, OctaveDownCommand, OctaveUpCommand, RepeatEndCommand, RepeatStartCommand,
         RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TrackLoopCommand,
-        VolumeCommand, WaitCommand,
+        VolumeCommand, VolumeDownCommand, VolumeUpCommand, WaitCommand,
     },
     oscillators::Oscillator,
     types::{Detune, Note, Octave, Sample, Volume},
@@ -232,6 +232,25 @@ impl ChannelPlayer {
         Ok(())
     }
 
+    fn handle_volume_up_command(&mut self, command: VolumeUpCommand) -> Result<(), PlayMusicError> {
+        self.volume = self
+            .volume
+            .checked_add(command.count())
+            .ok_or_else(|| PlayMusicError::new(Command::VolumeUp(command), "volume overflow"))?;
+        Ok(())
+    }
+
+    fn handle_volume_down_command(
+        &mut self,
+        command: VolumeDownCommand,
+    ) -> Result<(), PlayMusicError> {
+        self.volume = self
+            .volume
+            .checked_sub(command.count())
+            .ok_or_else(|| PlayMusicError::new(Command::VolumeDown(command), "volume underflow"))?;
+        Ok(())
+    }
+
     fn handle_octave_command(&mut self, command: OctaveCommand) -> Result<(), PlayMusicError> {
         self.octave = command.octave();
         Ok(())
@@ -369,6 +388,8 @@ impl Iterator for ChannelPlayer {
             let result = match command {
                 Command::Note(c) => self.handle_note_command(c),
                 Command::Volume(c) => self.handle_volume_command(c),
+                Command::VolumeUp(c) => self.handle_volume_up_command(c),
+                Command::VolumeDown(c) => self.handle_volume_down_command(c),
                 Command::Octave(c) => self.handle_octave_command(c),
                 Command::OctaveUp(c) => self.handle_octave_up_command(c),
                 Command::OctaveDown(c) => self.handle_octave_down_command(c),
