@@ -21,6 +21,7 @@ pub enum Command {
     RepeatStart(RepeatStartCommand),
     RepeatEnd(RepeatEndCommand),
     RestSign(RestSignCommand),
+    Wait(WaitCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -157,6 +158,18 @@ pub struct RestSignCommand {
 }
 
 impl RestSignCommand {
+    pub fn note_duration(&self) -> NoteDuration {
+        self.duration
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct WaitCommand {
+    _prefix: Char<'w'>,
+    duration: NoteDuration,
+}
+
+impl WaitCommand {
     pub fn note_duration(&self) -> NoteDuration {
         self.duration
     }
