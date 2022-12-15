@@ -1,7 +1,10 @@
 use crate::{
     channel::{Channel, ChannelName},
     clocks::Clocks,
-    commands::{Command, DetuneCommand, NoteCommand, OctaveCommand, TimbreCommand, VolumeCommand},
+    commands::{
+        Command, DefaultNoteDurationCommand, DetuneCommand, NoteCommand, OctaveCommand,
+        TimbreCommand, VolumeCommand,
+    },
     oscillators::Oscillator,
     types::{Detune, Octave, Sample, Volume},
     Music,
@@ -168,6 +171,15 @@ impl ChannelPlayer {
             ))
         }
     }
+
+    fn handle_default_note_duration_command(
+        &mut self,
+        command: DefaultNoteDurationCommand,
+    ) -> Result<(), PlayMusicError> {
+        self.clocks
+            .set_default_note_duration(command.default_note_duration());
+        Ok(())
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -190,6 +202,7 @@ impl Iterator for ChannelPlayer {
                 Command::Octave(c) => self.handle_octave_command(c),
                 Command::Detune(c) => self.handle_detune_command(c),
                 Command::Timbre(c) => self.handle_timbre_command(c),
+                Command::DefaultNoteDuration(c) => self.handle_default_note_duration_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);
