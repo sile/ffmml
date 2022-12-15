@@ -9,7 +9,7 @@ edition = "2021"
 textparse = "0.0.2"
 
 [workspace]
-members = ["ffmml2wav"]
+members = ["ffmml2wav"] # ffmml_cli(?)
 
 [patch.crates-io]
 textparse = { path = "../textparse/" }

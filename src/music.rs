@@ -2,6 +2,7 @@ use crate::{
     channel::Channels,
     comment::CommentsOrWhitespaces,
     definitions::{Composer, Definition, Programer, Title},
+    player::MusicPlayer,
 };
 use textparse::{ParseResult, Parser};
 
@@ -50,6 +51,8 @@ impl Music {
         })
     }
 
+    // TODO: validate
+
     pub fn title(&self) -> Option<&str> {
         self.title.as_ref().map(|x| x.get())
     }
@@ -64,6 +67,14 @@ impl Music {
 
     pub fn channels(&self) -> &Channels {
         &self.channels
+    }
+
+    pub fn into_channels(self) -> Channels {
+        self.channels
+    }
+
+    pub fn play(self, sample_rate: u16) -> MusicPlayer {
+        MusicPlayer::new(self, sample_rate)
     }
 }
 

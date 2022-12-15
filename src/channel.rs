@@ -56,6 +56,10 @@ impl Channels {
         }
         Ok(())
     }
+
+    pub fn into_iter(self) -> impl Iterator<Item = (ChannelName, Channel)> {
+        self.0.into_iter()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
