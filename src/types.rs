@@ -132,6 +132,23 @@ impl Note {
         self.accidentals
     }
 
+    pub fn offset_from_a(self) -> usize {
+        match self.normalize() {
+            (Letter::A, false) => 0,
+            (Letter::A, true) => 1,
+            (Letter::B, _) => 2,
+            (Letter::C, false) => 3,
+            (Letter::C, true) => 4,
+            (Letter::D, false) => 5,
+            (Letter::D, true) => 6,
+            (Letter::E, _) => 7,
+            (Letter::F, false) => 8,
+            (Letter::F, true) => 9,
+            (Letter::G, false) => 10,
+            (Letter::G, true) => 11,
+        }
+    }
+
     pub fn normalize(mut self) -> (Letter, bool) {
         loop {
             if matches!(
