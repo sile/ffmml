@@ -6,7 +6,11 @@ pub struct Clock(Ratio<u64>);
 
 impl Clock {
     fn tick(&mut self, numer: u64, denom: u64) {
-        self.0 += Ratio::new_raw(numer, denom);
+        self.0 += Ratio::new(numer, denom);
+    }
+
+    pub fn now(self) -> std::time::Duration {
+        std::time::Duration::from_secs_f64(*self.0.numer() as f64 / *self.0.denom() as f64)
     }
 }
 
@@ -53,21 +57,15 @@ impl Clocks {
     }
 
     pub fn tick_note_clock(&mut self, note_duration: NoteDuration) {
-        let unit = u64::from(self.tempo.get()) * 4; // four-four time
-        let mut duration = u64::from(
-            note_duration
-                .get()
-                .unwrap_or_else(|| self.default_note_duration.get()),
-        );
-        for _ in 0..=note_duration.dots() {
-            self.note_clock.tick(unit, duration);
-            duration *= 2;
+        let duration = note_duration
+            .get()
+            .unwrap_or_else(|| self.default_note_duration.get());
 
-            // safe guard for overflow
-            // (the threshold value has no special meaning other than a somewhat large value)
-            if duration > 0xFFFF {
-                break;
-            }
+        let numer = 60 /* a minute */ * 4 /* four-four- time*/;
+        let mut denom = u64::from(self.tempo.get()) * u64::from(duration);
+        for _ in 0..=std::cmp::min(note_duration.dots(), 16) {
+            self.note_clock.tick(numer, denom);
+            denom *= 2;
         }
     }
 
