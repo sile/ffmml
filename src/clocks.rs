@@ -29,6 +29,7 @@ pub struct Clocks {
     tempo: Tempo,
     default_note_duration: DefaultNoteDuration,
     tuplet: Option<Tuplet>,
+    frame_index: usize,
 }
 
 impl Clocks {
@@ -41,6 +42,7 @@ impl Clocks {
             tempo: Tempo::default(),
             default_note_duration: DefaultNoteDuration::default(),
             tuplet: None,
+            frame_index: 0,
         }
     }
 
@@ -91,12 +93,18 @@ impl Clocks {
             false
         } else {
             self.frame_clock = next_frame;
+            self.frame_index += 1;
             true
         }
     }
 
-    pub fn set_frame_clock(&mut self, clock: Clock) {
+    pub fn reset_frame_clock(&mut self, clock: Clock) {
         self.frame_clock = clock;
+        self.frame_index = 0;
+    }
+
+    pub fn frame_index(&self) -> usize {
+        self.frame_index
     }
 
     pub fn set_tempo(&mut self, tempo: Tempo) {

@@ -1,6 +1,9 @@
-use crate::types::{
-    DefaultNoteDuration, Detune, Digit, NonZeroU4, NonZeroU8, Note, NoteDuration, Octave, Tempo,
-    Timbre, Volume,
+use crate::{
+    macros::MacroNumber,
+    types::{
+        DefaultNoteDuration, Detune, Digit, NonZeroU4, NonZeroU8, Note, NoteDuration, Octave,
+        Tempo, Timbre, Volume,
+    },
 };
 use textparse::{
     components::{Char, Either, Not, StartsWith, StaticStr},
@@ -14,6 +17,7 @@ pub enum Command {
     Volume(VolumeCommand),
     VolumeUp(VolumeUpCommand),
     VolumeDown(VolumeDownCommand),
+    VolumeEnvelope(VolumeEnvelopeCommand),
     Octave(OctaveCommand),
     OctaveUp(OctaveUpCommand),
     OctaveDown(OctaveDownCommand),
@@ -82,6 +86,18 @@ pub struct VolumeCommand {
 impl VolumeCommand {
     pub fn volume(&self) -> Volume {
         self.volume
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct VolumeEnvelopeCommand {
+    _prefix: (Char<'@'>, Char<'v'>),
+    macro_number: MacroNumber,
+}
+
+impl VolumeEnvelopeCommand {
+    pub fn macro_number(&self) -> MacroNumber {
+        self.macro_number
     }
 }
 

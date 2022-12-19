@@ -5,14 +5,16 @@ use crate::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
         OctaveCommand, OctaveDownCommand, OctaveUpCommand, RepeatEndCommand, RepeatStartCommand,
         RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TrackLoopCommand,
-        TupletEndCommand, TupletStartCommand, VolumeCommand, VolumeDownCommand, VolumeUpCommand,
-        WaitCommand,
+        TupletEndCommand, TupletStartCommand, VolumeCommand, VolumeDownCommand,
+        VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
     },
+    macros::Macros,
     oscillators::Oscillator,
-    types::{Detune, Note, Octave, Sample, Volume},
+    traits::FrameValue,
+    types::{Detune, Note, Octave, Sample, Volume, VolumeEnvelope},
     Music,
 };
-use std::{collections::BTreeMap, time::Duration};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use textparse::Span;
 
 #[derive(Debug)]
@@ -23,10 +25,16 @@ pub struct MusicPlayer {
 
 impl MusicPlayer {
     pub(crate) fn new(music: Music, sample_rate: u16) -> Self {
+        let macros = music.macros();
         let channels = music
             .into_channels()
             .into_iter()
-            .map(|(name, channel)| (name, ChannelPlayer::new(channel, sample_rate)))
+            .map(|(name, channel)| {
+                (
+                    name,
+                    ChannelPlayer::new(channel, macros.clone(), sample_rate),
+                )
+            })
             .collect();
         Self {
             channels,
@@ -122,9 +130,10 @@ struct ChannelPlayer {
     oscillator: Oscillator,
     commands: Vec<Command>,
     command_index: usize,
+    macros: Arc<Macros>,
     octave: Octave,
     detune: Detune,
-    volume: Volume,
+    volume: VolumeEnvelope,
     clocks: Clocks,
     loop_point: Option<usize>,
     repeat_stack: Vec<Repeat>,
@@ -133,14 +142,15 @@ struct ChannelPlayer {
 }
 
 impl ChannelPlayer {
-    fn new(channel: Channel, sample_rate: u16) -> Self {
+    fn new(channel: Channel, macros: Arc<Macros>, sample_rate: u16) -> Self {
         Self {
             oscillator: channel.oscillator,
             commands: channel.commands,
             command_index: 0,
+            macros,
             octave: Octave::default(),
             detune: Detune::default(),
-            volume: Volume::default(),
+            volume: VolumeEnvelope::constant(Volume::default()),
             clocks: Clocks::new(sample_rate),
             loop_point: None,
             repeat_stack: Vec::new(),
@@ -155,7 +165,8 @@ impl ChannelPlayer {
             Sample::ZERO
         } else {
             let sample = self.oscillator.sample(self.clocks.sample_rate());
-            sample * self.volume.as_ratio()
+            let volume = self.volume.frame_value(self.clocks.frame_index());
+            sample * volume.as_ratio()
         }
     }
 
@@ -165,14 +176,14 @@ impl ChannelPlayer {
         self.oscillator
             .set_frequency(command.note(), self.octave, self.detune);
         self.clocks.tick_note_clock(command.note_duration());
-        self.clocks.set_frame_clock(self.clocks.sample_clock());
+        self.clocks.reset_frame_clock(self.clocks.sample_clock());
         self.note = Some(command.note());
         Ok(())
     }
 
     fn handle_rest_sign_command(&mut self, command: RestSignCommand) -> Result<(), PlayMusicError> {
         self.clocks.tick_note_clock(command.note_duration());
-        self.clocks.set_frame_clock(self.clocks.sample_clock());
+        self.clocks.reset_frame_clock(self.clocks.sample_clock());
         self.note = None;
         Ok(())
     }
@@ -229,15 +240,39 @@ impl ChannelPlayer {
     }
 
     fn handle_volume_command(&mut self, command: VolumeCommand) -> Result<(), PlayMusicError> {
-        self.volume = command.volume();
+        self.volume = VolumeEnvelope::constant(command.volume());
+        Ok(())
+    }
+
+    fn handle_volume_envelope_command(
+        &mut self,
+        command: VolumeEnvelopeCommand,
+    ) -> Result<(), PlayMusicError> {
+        self.volume = self
+            .macros
+            .volumes
+            .get(&command.macro_number())
+            .ok_or_else(|| {
+                PlayMusicError::new(Command::VolumeEnvelope(command), "undefined macro number")
+            })?
+            .envelope()
+            .clone();
         Ok(())
     }
 
     fn handle_volume_up_command(&mut self, command: VolumeUpCommand) -> Result<(), PlayMusicError> {
-        self.volume = self
+        if !self.volume.is_constant() {
+            return Err(PlayMusicError::new(
+                Command::VolumeUp(command),
+                "cannot be used with volume envelope",
+            ));
+        }
+        let v = self
             .volume
+            .frame_value(self.clocks.frame_index())
             .checked_add(command.count())
             .ok_or_else(|| PlayMusicError::new(Command::VolumeUp(command), "volume overflow"))?;
+        self.volume = VolumeEnvelope::constant(v);
         Ok(())
     }
 
@@ -245,10 +280,18 @@ impl ChannelPlayer {
         &mut self,
         command: VolumeDownCommand,
     ) -> Result<(), PlayMusicError> {
-        self.volume = self
+        if !self.volume.is_constant() {
+            return Err(PlayMusicError::new(
+                Command::VolumeDown(command),
+                "cannot be used with volume envelope",
+            ));
+        }
+        let v = self
             .volume
+            .frame_value(self.clocks.frame_index())
             .checked_sub(command.count())
             .ok_or_else(|| PlayMusicError::new(Command::VolumeDown(command), "volume underflow"))?;
+        self.volume = VolumeEnvelope::constant(v);
         Ok(())
     }
 
@@ -452,6 +495,7 @@ impl Iterator for ChannelPlayer {
                 Command::Volume(c) => self.handle_volume_command(c),
                 Command::VolumeUp(c) => self.handle_volume_up_command(c),
                 Command::VolumeDown(c) => self.handle_volume_down_command(c),
+                Command::VolumeEnvelope(c) => self.handle_volume_envelope_command(c),
                 Command::Octave(c) => self.handle_octave_command(c),
                 Command::OctaveUp(c) => self.handle_octave_up_command(c),
                 Command::OctaveDown(c) => self.handle_octave_down_command(c),

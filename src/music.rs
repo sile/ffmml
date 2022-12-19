@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     channel::Channels,
     comment::CommentsOrWhitespaces,
@@ -12,7 +14,7 @@ pub struct Music {
     title: Option<Title>,
     composer: Option<Composer>,
     programer: Option<Programer>,
-    macros: Macros,
+    macros: Arc<Macros>,
     channels: Channels,
 }
 
@@ -52,7 +54,7 @@ impl Music {
             title,
             composer,
             programer,
-            macros,
+            macros: Arc::new(macros),
             channels,
         })
     }
@@ -69,6 +71,10 @@ impl Music {
 
     pub fn programer(&self) -> Option<&str> {
         self.programer.as_ref().map(|x| x.get())
+    }
+
+    pub fn macros(&self) -> Arc<Macros> {
+        self.macros.clone()
     }
 
     pub fn channels(&self) -> &Channels {

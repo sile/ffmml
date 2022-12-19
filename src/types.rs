@@ -544,6 +544,21 @@ pub struct VolumeEnvelope {
     end: Position,
 }
 
+impl VolumeEnvelope {
+    pub fn constant(volume: Volume) -> Self {
+        Self {
+            start: Position::new(0),
+            volumes: vec![volume],
+            loop_point: 0,
+            end: Position::new(0),
+        }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        self.volumes.len() == 1
+    }
+}
+
 impl Parse for VolumeEnvelope {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
         let start = parser.current_position();
