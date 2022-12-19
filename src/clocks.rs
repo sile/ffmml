@@ -87,9 +87,9 @@ impl Clocks {
 
     pub fn tick_frame_clock_if_need(&mut self) -> bool {
         let mut next_frame = self.frame_clock;
-        next_frame.tick(1, 10); // 100 ms
+        next_frame.tick(1, 60);
 
-        if next_frame < self.sample_clock {
+        if self.sample_clock < next_frame {
             false
         } else {
             self.frame_clock = next_frame;
@@ -99,8 +99,8 @@ impl Clocks {
     }
 
     pub fn reset_frame_clock(&mut self, clock: Clock) {
-        self.frame_clock = clock;
         self.frame_index = 0;
+        self.frame_clock = clock;
     }
 
     pub fn frame_index(&self) -> usize {
