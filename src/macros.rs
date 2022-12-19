@@ -1,10 +1,27 @@
-use crate::types::U8;
+use crate::{
+    comment::CommentsOrWhitespaces,
+    types::{VolumeEnvelope, U8},
+};
 use std::collections::BTreeMap;
-use textparse::{Parse, ParseError, ParseResult, Parser, Span};
+use textparse::{components::Char, Parse, ParseError, ParseResult, Parser, Span};
 
 #[derive(Debug, Default, Clone)]
 pub struct Macros {
-    //pub volumes: BTreeMap<MacroNumber, VolumeMacro>,
+    pub volumes: BTreeMap<MacroNumber, VolumeMacro>,
+}
+
+impl Macros {
+    pub fn parse(&mut self, parser: &mut Parser) -> ParseResult<()> {
+        while parser.peek_char() == Some('@') {
+            if let Ok(m) = parser.parse::<VolumeMacro>() {
+                self.volumes.insert(m.number(), m);
+            } else {
+                return Err(ParseError);
+            }
+            let _: CommentsOrWhitespaces = parser.parse()?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Span)]
@@ -42,5 +59,31 @@ impl PartialOrd for MacroNumber {
 impl Ord for MacroNumber {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.0.get().cmp(&other.0.get())
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+struct MacroKey<Prefix> {
+    _at: Char<'@'>,
+    _prefix: Prefix,
+    number: MacroNumber,
+    _space0: CommentsOrWhitespaces,
+    _equal: Char<'='>,
+    _space1: CommentsOrWhitespaces,
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct VolumeMacro {
+    key: MacroKey<Char<'v'>>,
+    envelope: VolumeEnvelope,
+}
+
+impl VolumeMacro {
+    pub fn number(&self) -> MacroNumber {
+        self.key.number
+    }
+
+    pub fn envelope(&self) -> &VolumeEnvelope {
+        &self.envelope
     }
 }

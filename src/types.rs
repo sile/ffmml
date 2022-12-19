@@ -5,6 +5,8 @@ use textparse::{
     Parse, ParseError, ParseResult, Parser, Position, Span,
 };
 
+use crate::{comment::CommentsOrWhitespaces, traits::FrameValue};
+
 #[derive(Debug, Clone, Copy)]
 pub struct Sample(f32);
 
@@ -531,5 +533,63 @@ impl Parse for Volume {
 impl Default for Volume {
     fn default() -> Self {
         Self(U8::new(10))
+    }
+}
+
+#[derive(Debug, Clone, Span)]
+pub struct VolumeEnvelope {
+    start: Position,
+    volumes: Vec<Volume>,
+    loop_point: usize,
+    end: Position,
+}
+
+impl Parse for VolumeEnvelope {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let start = parser.current_position();
+        let _: Char<'{'> = parser.parse()?;
+
+        let mut loop_point = None;
+        let mut volumes = Vec::new();
+        loop {
+            let _: CommentsOrWhitespaces = parser.parse()?;
+            if parser.parse::<Char<'|'>>().is_ok() {
+                loop_point = Some(volumes.len());
+                let _: CommentsOrWhitespaces = parser.parse()?;
+            }
+
+            volumes.push(parser.parse::<Volume>()?);
+
+            let _: CommentsOrWhitespaces = parser.parse()?;
+            if parser.parse::<Char<','>>().is_ok() {
+                continue;
+            }
+
+            if parser.parse::<Char<'}'>>().is_ok() {
+                break;
+            }
+        }
+        let end = parser.current_position();
+        let loop_point = loop_point.unwrap_or_else(|| volumes.len() - 1);
+        Ok(Self {
+            start,
+            volumes,
+            loop_point,
+            end,
+        })
+    }
+}
+
+impl FrameValue for VolumeEnvelope {
+    type Item = Volume;
+
+    fn frame_value(&self, frame_index: usize) -> Self::Item {
+        if let Some(item) = self.volumes.get(frame_index).copied() {
+            item
+        } else {
+            let i = frame_index - self.volumes.len();
+            let i = (i % (self.volumes.len() - self.loop_point)) + self.loop_point;
+            self.volumes[i]
+        }
     }
 }

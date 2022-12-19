@@ -2,6 +2,7 @@ use crate::{
     channel::Channels,
     comment::CommentsOrWhitespaces,
     definitions::{Composer, Definition, Programer, Title},
+    macros::Macros,
     player::MusicPlayer,
 };
 use textparse::{ParseResult, Parser};
@@ -11,7 +12,8 @@ pub struct Music {
     title: Option<Title>,
     composer: Option<Composer>,
     programer: Option<Programer>,
-    channels: Channels, // pub macros: Macros,
+    macros: Macros,
+    channels: Channels,
 }
 
 impl Music {
@@ -39,6 +41,10 @@ impl Music {
         }
 
         let _: CommentsOrWhitespaces = parser.parse()?;
+        let mut macros = Macros::default();
+        macros.parse(parser)?;
+
+        let _: CommentsOrWhitespaces = parser.parse()?;
         let mut channels = Channels::new();
         channels.parse(parser)?;
 
@@ -46,6 +52,7 @@ impl Music {
             title,
             composer,
             programer,
+            macros,
             channels,
         })
     }
