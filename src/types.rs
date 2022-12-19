@@ -319,7 +319,7 @@ impl Parse for NonZeroU8 {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
-struct U8<const NAMED: bool = true> {
+pub struct U8<const NAMED: bool = true> {
     start: Position,
     value: u8,
     end: Position,
@@ -334,7 +334,7 @@ impl<const NAMED: bool> U8<NAMED> {
         }
     }
 
-    const fn get(self) -> u8 {
+    pub const fn get(self) -> u8 {
         self.value
     }
 }
