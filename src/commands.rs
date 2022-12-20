@@ -22,6 +22,7 @@ pub enum Command {
     OctaveUp(OctaveUpCommand),
     OctaveDown(OctaveDownCommand),
     Detune(DetuneCommand),
+    PitchEnvelope(PitchEnvelopeCommand),
     Timbre(TimbreCommand),
     Timbres(TimbresCommand),
     DefaultNoteDuration(DefaultNoteDurationCommand),
@@ -172,6 +173,22 @@ impl DetuneCommand {
     }
 }
 
+#[derive(Debug, Clone, Span, Parse)]
+pub struct PitchEnvelopeCommand {
+    _prefix: (Char<'E'>, Char<'P'>),
+    macro_number: Either<MacroNumber, Off>,
+}
+
+impl PitchEnvelopeCommand {
+    pub fn macro_number(&self) -> Option<MacroNumber> {
+        if let Either::A(n) = self.macro_number {
+            Some(n)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug)]
 struct N255;
 
@@ -180,6 +197,17 @@ impl StaticStr for N255 {
         "255"
     }
 }
+
+#[derive(Debug)]
+struct Of;
+
+impl StaticStr for Of {
+    fn static_str() -> &'static str {
+        "OF"
+    }
+}
+
+type Off = Either<StartsWith<N255>, StartsWith<Of>>;
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct TimbreCommand {

@@ -3,15 +3,16 @@ use crate::{
     clocks::Clocks,
     commands::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
-        OctaveCommand, OctaveDownCommand, OctaveUpCommand, QuantizeCommand, RepeatEndCommand,
-        RepeatStartCommand, RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand,
-        TimbresCommand, TrackLoopCommand, TupletEndCommand, TupletStartCommand, VolumeCommand,
-        VolumeDownCommand, VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
+        OctaveCommand, OctaveDownCommand, OctaveUpCommand, PitchEnvelopeCommand, QuantizeCommand,
+        RepeatEndCommand, RepeatStartCommand, RestSignCommand, SlurCommand, TempoCommand,
+        TieCommand, TimbreCommand, TimbresCommand, TrackLoopCommand, TupletEndCommand,
+        TupletStartCommand, VolumeCommand, VolumeDownCommand, VolumeEnvelopeCommand,
+        VolumeUpCommand, WaitCommand,
     },
     macros::Macros,
     oscillators::Oscillator,
     traits::NthFrameItem,
-    types::{Detune, Note, Octave, Sample, Timbre, Timbres, Volume, VolumeEnvelope},
+    types::{Detune, Note, Octave, PitchEnvelope, Sample, Timbre, Timbres, Volume, VolumeEnvelope},
     Music,
 };
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
@@ -132,7 +133,7 @@ struct ChannelPlayer {
     command_index: usize,
     macros: Arc<Macros>,
     octave: Octave,
-    detune: Detune,
+    detune: PitchEnvelope,
     volume: VolumeEnvelope,
     timbre: Timbres,
     clocks: Clocks,
@@ -150,7 +151,7 @@ impl ChannelPlayer {
             command_index: 0,
             macros,
             octave: Octave::default(),
-            detune: Detune::default(),
+            detune: PitchEnvelope::constant(Detune::default()),
             volume: VolumeEnvelope::constant(Volume::default()),
             timbre: Timbres::constant(Timbre::default()),
             clocks: Clocks::new(sample_rate),
@@ -185,8 +186,9 @@ impl ChannelPlayer {
     }
 
     fn handle_note_command(&mut self, command: NoteCommand) -> Result<(), PlayMusicError> {
+        let detune = self.detune.nth_frame_item(self.clocks.frame_index());
         self.oscillator
-            .set_frequency(command.note(), self.octave, self.detune);
+            .set_frequency(command.note(), self.octave, detune);
         self.clocks.tick_note_clock(command.note_duration());
         self.clocks.reset_frame_clock(self.clocks.sample_clock());
         self.handle_frame()?;
@@ -204,8 +206,8 @@ impl ChannelPlayer {
 
     fn handle_wait_command(&mut self, command: WaitCommand) -> Result<(), PlayMusicError> {
         if let Some(note) = self.note {
-            self.oscillator
-                .set_frequency(note, self.octave, self.detune);
+            let detune = self.detune.nth_frame_item(self.clocks.frame_index());
+            self.oscillator.set_frequency(note, self.octave, detune);
         }
         self.clocks.tick_note_clock(command.note_duration());
         Ok(())
@@ -332,7 +334,25 @@ impl ChannelPlayer {
     }
 
     fn handle_detune_command(&mut self, command: DetuneCommand) -> Result<(), PlayMusicError> {
-        self.detune = command.detune();
+        self.detune = PitchEnvelope::constant(command.detune());
+        Ok(())
+    }
+
+    fn handle_pitch_envelope_command(
+        &mut self,
+        command: PitchEnvelopeCommand,
+    ) -> Result<(), PlayMusicError> {
+        if let Some(n) = command.macro_number() {
+            self.detune = self
+                .macros
+                .pitches
+                .get(&n)
+                .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
+                .envelope()
+                .clone();
+        } else {
+            self.detune = PitchEnvelope::constant(Detune::default());
+        }
         Ok(())
     }
 
@@ -514,6 +534,7 @@ impl Iterator for ChannelPlayer {
                 Command::OctaveUp(c) => self.handle_octave_up_command(c),
                 Command::OctaveDown(c) => self.handle_octave_down_command(c),
                 Command::Detune(c) => self.handle_detune_command(c),
+                Command::PitchEnvelope(c) => self.handle_pitch_envelope_command(c),
                 Command::Timbre(c) => self.handle_timbre_command(c),
                 Command::Timbres(c) => self.handle_timbres_command(c),
                 Command::DefaultNoteDuration(c) => self.handle_default_note_duration_command(c),

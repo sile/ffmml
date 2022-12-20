@@ -1,6 +1,6 @@
 use crate::{
     comment::CommentsOrWhitespaces,
-    types::{Timbres, VolumeEnvelope, U8},
+    types::{PitchEnvelope, Timbres, VolumeEnvelope, U8},
 };
 use std::collections::BTreeMap;
 use textparse::{
@@ -12,6 +12,7 @@ use textparse::{
 pub struct Macros {
     pub volumes: BTreeMap<MacroNumber, VolumeMacro>,
     pub timbres: BTreeMap<MacroNumber, TimbreMacro>,
+    pub pitches: BTreeMap<MacroNumber, PitchMacro>,
 }
 
 impl Macros {
@@ -21,6 +22,8 @@ impl Macros {
                 self.volumes.insert(m.number(), m);
             } else if let Ok(m) = parser.parse::<TimbreMacro>() {
                 self.timbres.insert(m.number(), m);
+            } else if let Ok(m) = parser.parse::<PitchMacro>() {
+                self.pitches.insert(m.number(), m);
             } else {
                 return Err(ParseError);
             }
@@ -90,6 +93,22 @@ impl VolumeMacro {
     }
 
     pub fn envelope(&self) -> &VolumeEnvelope {
+        &self.envelope
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct PitchMacro {
+    key: MacroKey<(Char<'E'>, Char<'P'>)>,
+    envelope: PitchEnvelope,
+}
+
+impl PitchMacro {
+    pub fn number(&self) -> MacroNumber {
+        self.key.number
+    }
+
+    pub fn envelope(&self) -> &PitchEnvelope {
         &self.envelope
     }
 }

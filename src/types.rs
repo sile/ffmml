@@ -664,6 +664,27 @@ impl NthFrameItem for VolumeEnvelope {
 }
 
 #[derive(Debug, Clone, Span, Parse)]
+pub struct PitchEnvelope {
+    envelope: LoopList<Detune>,
+}
+
+impl PitchEnvelope {
+    pub fn constant(detune: Detune) -> Self {
+        Self {
+            envelope: LoopList::constant(detune),
+        }
+    }
+}
+
+impl NthFrameItem for PitchEnvelope {
+    type Item = Detune;
+
+    fn nth_frame_item(&self, frame_index: usize) -> Self::Item {
+        self.envelope.nth_frame_item(frame_index)
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
 pub struct Timbres {
     list: LoopList<Timbre>,
 }
