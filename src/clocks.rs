@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::types::{DefaultNoteDuration, NoteDuration, Tempo};
+use crate::types::{DefaultNoteDuration, NoteDuration, Quantize, Tempo};
 use num::rational::Ratio;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -25,8 +25,10 @@ pub struct Clocks {
     sample_clock: Clock,
     note_clock: Clock,
     frame_clock: Clock,
+    quantize_clock: Clock,
     sample_rate: u16,
     tempo: Tempo,
+    quantize: Quantize,
     default_note_duration: DefaultNoteDuration,
     tuplet: Option<Tuplet>,
     frame_index: usize,
@@ -38,8 +40,10 @@ impl Clocks {
             sample_clock: Clock::default(),
             note_clock: Clock::default(),
             frame_clock: Clock::default(),
+            quantize_clock: Clock::default(),
             sample_rate,
             tempo: Tempo::default(),
+            quantize: Quantize::default(),
             default_note_duration: DefaultNoteDuration::default(),
             tuplet: None,
             frame_index: 0,
@@ -54,6 +58,10 @@ impl Clocks {
         self.note_clock
     }
 
+    pub fn quantize_clock(&self) -> Clock {
+        self.quantize_clock
+    }
+
     pub fn sample_rate(&self) -> u16 {
         self.sample_rate
     }
@@ -63,10 +71,15 @@ impl Clocks {
     }
 
     pub fn tick_note_clock(&mut self, note_duration: NoteDuration) {
+        self.quantize_clock = self.note_clock;
+
         if let Some(tuplet) = &mut self.tuplet {
             tuplet.remainings -= 1;
-            self.note_clock
-                .tick(*tuplet.duration.numer(), *tuplet.duration.denom());
+            let numer = *tuplet.duration.numer();
+            let denom = *tuplet.duration.denom();
+            self.note_clock.tick(numer, denom);
+            self.quantize_clock
+                .tick(numer * u64::from(self.quantize.get()), denom * 8);
             if tuplet.remainings == 0 {
                 self.tuplet = None;
             }
@@ -81,6 +94,8 @@ impl Clocks {
         let mut denom = u64::from(self.tempo.get()) * u64::from(duration);
         for _ in 0..=std::cmp::min(note_duration.dots(), 16) {
             self.note_clock.tick(numer, denom);
+            self.quantize_clock
+                .tick(numer * u64::from(self.quantize.get()), denom * 8);
             denom *= 2;
         }
     }
@@ -109,6 +124,10 @@ impl Clocks {
 
     pub fn set_tempo(&mut self, tempo: Tempo) {
         self.tempo = tempo;
+    }
+
+    pub fn set_quantize(&mut self, quantize: Quantize) {
+        self.quantize = quantize;
     }
 
     pub fn set_default_note_duration(&mut self, default: DefaultNoteDuration) {

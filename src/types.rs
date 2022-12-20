@@ -469,6 +469,36 @@ impl Default for Octave {
     }
 }
 
+#[derive(Debug, Clone, Copy, Span)]
+pub struct Quantize(U8);
+
+impl Quantize {
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+}
+
+impl Parse for Quantize {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let n: U8 = parser.parse()?;
+        if (1..=8).contains(&n.get()) {
+            Ok(Self(n))
+        } else {
+            Err(ParseError)
+        }
+    }
+
+    fn name() -> Option<fn() -> String> {
+        Some(|| "an integer between 1 and 8".to_owned())
+    }
+}
+
+impl Default for Quantize {
+    fn default() -> Self {
+        Self(U8::new(8))
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, Span, Parse)]
 pub struct Detune(I8);
 

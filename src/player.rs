@@ -3,10 +3,10 @@ use crate::{
     clocks::Clocks,
     commands::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
-        OctaveCommand, OctaveDownCommand, OctaveUpCommand, RepeatEndCommand, RepeatStartCommand,
-        RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TimbresCommand,
-        TrackLoopCommand, TupletEndCommand, TupletStartCommand, VolumeCommand, VolumeDownCommand,
-        VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
+        OctaveCommand, OctaveDownCommand, OctaveUpCommand, QuantizeCommand, RepeatEndCommand,
+        RepeatStartCommand, RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand,
+        TimbresCommand, TrackLoopCommand, TupletEndCommand, TupletStartCommand, VolumeCommand,
+        VolumeDownCommand, VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
     },
     macros::Macros,
     oscillators::Oscillator,
@@ -167,8 +167,12 @@ impl ChannelPlayer {
             Sample::ZERO
         } else {
             let sample = self.oscillator.sample(self.clocks.sample_rate());
-            let volume = self.volume.nth_frame_item(self.clocks.frame_index());
-            sample * volume.as_ratio()
+            if self.clocks.sample_clock() < self.clocks.quantize_clock() {
+                let volume = self.volume.nth_frame_item(self.clocks.frame_index());
+                sample * volume.as_ratio()
+            } else {
+                Sample::ZERO
+            }
         }
     }
 
@@ -468,6 +472,11 @@ impl ChannelPlayer {
         }
         Err(PlayMusicError::new(command, "no maching '{'"))
     }
+
+    fn handle_quantize_command(&mut self, command: QuantizeCommand) -> Result<(), PlayMusicError> {
+        self.clocks.set_quantize(command.quantize());
+        Ok(())
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -519,6 +528,7 @@ impl Iterator for ChannelPlayer {
                 Command::Wait(c) => self.handle_wait_command(c),
                 Command::Tie(c) => self.handle_tie_command(c),
                 Command::Slur(c) => self.handle_slur_command(c),
+                Command::Quantize(c) => self.handle_quantize_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);

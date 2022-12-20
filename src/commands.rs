@@ -2,7 +2,7 @@ use crate::{
     macros::MacroNumber,
     types::{
         DefaultNoteDuration, Detune, Digit, NonZeroU4, NonZeroU8, Note, NoteDuration, Octave,
-        Tempo, Timbre, Volume,
+        Quantize, Tempo, Timbre, Volume,
     },
 };
 use textparse::{
@@ -36,6 +36,7 @@ pub enum Command {
     Wait(WaitCommand),
     Tie(TieCommand),
     Slur(SlurCommand),
+    Quantize(QuantizeCommand),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -287,4 +288,16 @@ impl TieCommand {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct SlurCommand {
     _prefix: Char<'&'>,
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct QuantizeCommand {
+    _prefix: Char<'q'>,
+    quantize: Quantize,
+}
+
+impl QuantizeCommand {
+    pub fn quantize(&self) -> Quantize {
+        self.quantize
+    }
 }
