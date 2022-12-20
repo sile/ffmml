@@ -7,7 +7,7 @@ use num::rational::Ratio;
 pub struct Clock(Ratio<u64>);
 
 impl Clock {
-    fn tick(&mut self, numer: u64, denom: u64) {
+    pub fn tick(&mut self, numer: u64, denom: u64) {
         self.0 += Ratio::new(numer, denom);
     }
 

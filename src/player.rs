@@ -10,11 +10,11 @@ use crate::{
         VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
     },
     macros::Macros,
-    oscillators::Oscillator,
+    oscillators::{Oscillator, PitchLfo},
     traits::NthFrameItem,
     types::{
-        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, Sample, Timbre, Timbres, Vibrato,
-        Volume, VolumeEnvelope,
+        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, Sample, Timbre, Timbres, Volume,
+        VolumeEnvelope,
     },
     Music,
 };
@@ -144,7 +144,7 @@ struct ChannelPlayer {
     loop_point: Option<usize>,
     repeat_stack: Vec<Repeat>,
     note: Option<Note>,
-    vibrato: Option<Vibrato>,
+    pitch_lfo: Option<PitchLfo>,
     last_error: Option<PlayMusicError>,
 }
 
@@ -164,7 +164,7 @@ impl ChannelPlayer {
             arpeggio: None,
             repeat_stack: Vec::new(),
             note: None,
-            vibrato: None,
+            pitch_lfo: None,
             last_error: None,
         }
     }
@@ -174,7 +174,9 @@ impl ChannelPlayer {
         if self.note.is_none() {
             Sample::ZERO
         } else {
-            let sample = self.oscillator.sample(self.clocks.sample_rate());
+            let sample = self
+                .oscillator
+                .sample(self.clocks.sample_rate(), self.pitch_lfo.as_mut());
             if self.clocks.sample_clock() < self.clocks.quantize_clock() {
                 let volume = self.volume.nth_frame_item(self.clocks.frame_index());
                 sample * volume.as_ratio()
@@ -225,6 +227,9 @@ impl ChannelPlayer {
         self.clocks.tick_note_clock(command.note_duration());
         self.clocks.reset_frame_clock(self.clocks.sample_clock());
         self.handle_frame()?;
+        if let Some(lfo) = &mut self.pitch_lfo {
+            lfo.reset_timer();
+        }
         Ok(())
     }
 
@@ -403,16 +408,19 @@ impl ChannelPlayer {
 
     fn handle_vibrato_command(&mut self, command: VibratoCommand) -> Result<(), PlayMusicError> {
         if let Some(n) = command.macro_number() {
-            self.vibrato = Some(
-                self.macros
-                    .vibratos
-                    .get(&n)
-                    .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
-                    .vibrato()
-                    .clone(),
-            );
+            let vibrato = self
+                .macros
+                .vibratos
+                .get(&n)
+                .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
+                .vibrato();
+            self.pitch_lfo = Some(PitchLfo::new(
+                vibrato.delay(),
+                vibrato.speed(),
+                vibrato.depth(),
+            ));
         } else {
-            self.vibrato = None;
+            self.pitch_lfo = None;
         }
         Ok(())
     }

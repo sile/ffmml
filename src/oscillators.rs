@@ -1,4 +1,7 @@
-use crate::types::{Detune, Letter, Note, Octave, Sample, Timbre};
+use crate::{
+    clocks::Clock,
+    types::{Detune, Letter, Note, Octave, Sample, Timbre},
+};
 
 const MASTER_CLOCK_HZ: f32 = 21477272.7272;
 const SYSTEM_CLOCK_HZ: f32 = MASTER_CLOCK_HZ / 12.0;
@@ -15,15 +18,21 @@ impl Oscillator {
         Self::PulseWave(PulseWave::new())
     }
 
-    pub fn sample(&mut self, sample_rate: u16) -> Sample {
+    pub fn sample(&mut self, sample_rate: u16, lfo: Option<&mut PitchLfo>) -> Sample {
         match self {
-            Oscillator::PulseWave(o) => o.sample(sample_rate),
+            Oscillator::PulseWave(o) => o.sample(sample_rate, lfo),
         }
     }
 
     pub fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
         match self {
             Oscillator::PulseWave(o) => o.set_frequency(note, octave, detune),
+        }
+    }
+
+    pub fn frequency(&self) -> f32 {
+        match self {
+            Oscillator::PulseWave(o) => o.frequency,
         }
     }
 
@@ -55,8 +64,14 @@ impl PulseWave {
         }
     }
 
-    fn sample(&mut self, sample_rate: u16) -> Sample {
-        self.phase += self.frequency / f32::from(sample_rate);
+    fn sample(&mut self, sample_rate: u16, lfo: Option<&mut PitchLfo>) -> Sample {
+        let frequency = if let Some(lfo) = lfo {
+            let d = lfo.sample(sample_rate);
+            register_to_frequency(frequency_to_register(self.frequency) - d)
+        } else {
+            self.frequency
+        };
+        self.phase += frequency / f32::from(sample_rate);
         self.phase -= self.phase.floor();
         if self.phase > self.duty_cycle {
             Sample::MAX
@@ -88,6 +103,64 @@ impl PulseWave {
             _ => return false,
         };
         true
+    }
+}
+
+#[derive(Debug)]
+pub struct PitchLfo {
+    now: Clock,
+    start: Clock,
+    sine_wave: SineWave,
+    depth: u8,
+}
+
+impl PitchLfo {
+    pub fn new(delay: u8, speed: u8, depth: u8) -> Self {
+        let frequency = 20.0 / f32::from(speed);
+        let mut start = Clock::default();
+        start.tick(u64::from(delay), 60);
+        Self {
+            now: Clock::default(),
+            start,
+            sine_wave: SineWave::new(frequency),
+            depth,
+        }
+    }
+
+    pub fn sample(&mut self, sample_rate: u16) -> f32 {
+        self.now.tick(1, u64::from(sample_rate));
+        if self.now < self.start {
+            0.0
+        } else {
+            f32::from(self.depth) * self.sine_wave.sample(sample_rate).get()
+        }
+    }
+
+    pub fn reset_timer(&mut self) {
+        self.now = Clock::default();
+    }
+}
+
+#[derive(Debug)]
+pub struct SineWave {
+    frequency: f32,
+    phase: f32,
+}
+
+impl SineWave {
+    pub fn new(frequency: f32) -> Self {
+        Self {
+            frequency,
+            phase: 0.0,
+        }
+    }
+
+    pub fn sample(&mut self, sample_rate: u16) -> Sample {
+        use std::f32::consts::PI;
+
+        self.phase += self.frequency / f32::from(sample_rate);
+        self.phase -= self.phase.floor();
+        Sample::new((self.phase * 2.0 * PI).sin())
     }
 }
 
