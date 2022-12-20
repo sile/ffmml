@@ -1,13 +1,17 @@
 use crate::{
     comment::CommentsOrWhitespaces,
-    types::{VolumeEnvelope, U8},
+    types::{Timbres, VolumeEnvelope, U8},
 };
 use std::collections::BTreeMap;
-use textparse::{components::Char, Parse, ParseError, ParseResult, Parser, Span};
+use textparse::{
+    components::{Char, Empty},
+    Parse, ParseError, ParseResult, Parser, Span,
+};
 
 #[derive(Debug, Default, Clone)]
 pub struct Macros {
     pub volumes: BTreeMap<MacroNumber, VolumeMacro>,
+    pub timbres: BTreeMap<MacroNumber, TimbreMacro>,
 }
 
 impl Macros {
@@ -15,6 +19,8 @@ impl Macros {
         while parser.peek_char() == Some('@') {
             if let Ok(m) = parser.parse::<VolumeMacro>() {
                 self.volumes.insert(m.number(), m);
+            } else if let Ok(m) = parser.parse::<TimbreMacro>() {
+                self.timbres.insert(m.number(), m);
             } else {
                 return Err(ParseError);
             }
@@ -85,5 +91,21 @@ impl VolumeMacro {
 
     pub fn envelope(&self) -> &VolumeEnvelope {
         &self.envelope
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct TimbreMacro {
+    key: MacroKey<Empty>,
+    timbres: Timbres,
+}
+
+impl TimbreMacro {
+    pub fn number(&self) -> MacroNumber {
+        self.key.number
+    }
+
+    pub fn timbres(&self) -> &Timbres {
+        &self.timbres
     }
 }

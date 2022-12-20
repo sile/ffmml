@@ -4,18 +4,18 @@ use crate::{
     commands::{
         Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
         OctaveCommand, OctaveDownCommand, OctaveUpCommand, RepeatEndCommand, RepeatStartCommand,
-        RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TrackLoopCommand,
-        TupletEndCommand, TupletStartCommand, VolumeCommand, VolumeDownCommand,
+        RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TimbresCommand,
+        TrackLoopCommand, TupletEndCommand, TupletStartCommand, VolumeCommand, VolumeDownCommand,
         VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
     },
     macros::Macros,
     oscillators::Oscillator,
-    traits::FrameValue,
-    types::{Detune, Note, Octave, Sample, Volume, VolumeEnvelope},
+    traits::NthFrameItem,
+    types::{Detune, Note, Octave, Sample, Timbre, Timbres, Volume, VolumeEnvelope},
     Music,
 };
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
-use textparse::Span;
+use textparse::{Position, Span};
 
 #[derive(Debug)]
 pub struct MusicPlayer {
@@ -92,22 +92,22 @@ impl Iterator for MusicPlayer {
 #[derive(Debug, Clone)]
 pub struct PlayMusicError {
     pub channel: ChannelName,
-    pub command: Command,
+    pub span: std::ops::Range<Position>,
     pub reason: String,
 }
 
 impl PlayMusicError {
-    fn new(command: Command, reason: &str) -> Self {
+    fn new(span: impl Span, reason: &str) -> Self {
         Self {
             channel: ChannelName::A, // dummy initial value.
-            command,
+            span: span.start_position()..span.end_position(),
             reason: reason.to_string(),
         }
     }
 
     pub fn to_string(&self, text: &str, filename: Option<&str>) -> String {
-        let offset = self.command.start_position().get();
-        let (line, column) = self.command.start_position().line_and_column(text);
+        let offset = self.span.start_position().get();
+        let (line, column) = self.span.start_position().line_and_column(text);
         let mut s = format!("{} on channel {:?}\n", self.reason, self.channel);
         s += &format!("  --> {}:{line}:{column}\n", filename.unwrap_or("<SCRIPT>"));
 
@@ -134,6 +134,7 @@ struct ChannelPlayer {
     octave: Octave,
     detune: Detune,
     volume: VolumeEnvelope,
+    timbre: Timbres,
     clocks: Clocks,
     loop_point: Option<usize>,
     repeat_stack: Vec<Repeat>,
@@ -151,6 +152,7 @@ impl ChannelPlayer {
             octave: Octave::default(),
             detune: Detune::default(),
             volume: VolumeEnvelope::constant(Volume::default()),
+            timbre: Timbres::constant(Timbre::default()),
             clocks: Clocks::new(sample_rate),
             loop_point: None,
             repeat_stack: Vec::new(),
@@ -165,18 +167,25 @@ impl ChannelPlayer {
             Sample::ZERO
         } else {
             let sample = self.oscillator.sample(self.clocks.sample_rate());
-            let volume = self.volume.frame_value(self.clocks.frame_index());
+            let volume = self.volume.nth_frame_item(self.clocks.frame_index());
             sample * volume.as_ratio()
         }
     }
 
-    fn handle_frame(&mut self) {}
+    fn handle_frame(&mut self) -> Result<(), PlayMusicError> {
+        let timbre = self.timbre.nth_frame_item(self.clocks.frame_index());
+        if !self.oscillator.set_timbre(timbre) {
+            return Err(PlayMusicError::new(timbre, "unsupported timbre value"));
+        }
+        Ok(())
+    }
 
     fn handle_note_command(&mut self, command: NoteCommand) -> Result<(), PlayMusicError> {
         self.oscillator
             .set_frequency(command.note(), self.octave, self.detune);
         self.clocks.tick_note_clock(command.note_duration());
         self.clocks.reset_frame_clock(self.clocks.sample_clock());
+        self.handle_frame()?;
         self.note = Some(command.note());
         Ok(())
     }
@@ -184,6 +193,7 @@ impl ChannelPlayer {
     fn handle_rest_sign_command(&mut self, command: RestSignCommand) -> Result<(), PlayMusicError> {
         self.clocks.tick_note_clock(command.note_duration());
         self.clocks.reset_frame_clock(self.clocks.sample_clock());
+        self.handle_frame()?;
         self.note = None;
         Ok(())
     }
@@ -203,7 +213,7 @@ impl ChannelPlayer {
             Command::Note(_)
         ) {
             return Err(PlayMusicError::new(
-                Command::Tie(command),
+                command,
                 "'^' must follow a note command",
             ));
         }
@@ -215,14 +225,14 @@ impl ChannelPlayer {
     fn handle_slur_command(&mut self, command: SlurCommand) -> Result<(), PlayMusicError> {
         let Command::Note(before) = &self.commands[self.command_index.saturating_sub(2)] else {
             return Err(PlayMusicError::new(
-                Command::Slur(command),
+                command,
                 "'&' must follow a note command",
             ));
         };
 
         let Some(Command::Note(after)) = self.commands.get(self.command_index) else {
             return Err(PlayMusicError::new(
-                Command::Slur(command),
+                command,
                 "mssing a note command after '&'",
             ));
         };
@@ -230,7 +240,7 @@ impl ChannelPlayer {
 
         if before.note().normalize() != after.note().normalize() {
             return Err(PlayMusicError::new(
-                Command::Slur(command),
+                command,
                 "'&' cannot combine different notes",
             ));
         }
@@ -252,9 +262,7 @@ impl ChannelPlayer {
             .macros
             .volumes
             .get(&command.macro_number())
-            .ok_or_else(|| {
-                PlayMusicError::new(Command::VolumeEnvelope(command), "undefined macro number")
-            })?
+            .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
             .envelope()
             .clone();
         Ok(())
@@ -263,15 +271,15 @@ impl ChannelPlayer {
     fn handle_volume_up_command(&mut self, command: VolumeUpCommand) -> Result<(), PlayMusicError> {
         if !self.volume.is_constant() {
             return Err(PlayMusicError::new(
-                Command::VolumeUp(command),
+                command,
                 "cannot be used with volume envelope",
             ));
         }
         let v = self
             .volume
-            .frame_value(self.clocks.frame_index())
+            .nth_frame_item(self.clocks.frame_index())
             .checked_add(command.count())
-            .ok_or_else(|| PlayMusicError::new(Command::VolumeUp(command), "volume overflow"))?;
+            .ok_or_else(|| PlayMusicError::new(command, "volume overflow"))?;
         self.volume = VolumeEnvelope::constant(v);
         Ok(())
     }
@@ -288,9 +296,9 @@ impl ChannelPlayer {
         }
         let v = self
             .volume
-            .frame_value(self.clocks.frame_index())
+            .nth_frame_item(self.clocks.frame_index())
             .checked_sub(command.count())
-            .ok_or_else(|| PlayMusicError::new(Command::VolumeDown(command), "volume underflow"))?;
+            .ok_or_else(|| PlayMusicError::new(command, "volume underflow"))?;
         self.volume = VolumeEnvelope::constant(v);
         Ok(())
     }
@@ -304,7 +312,7 @@ impl ChannelPlayer {
         self.octave = self
             .octave
             .checked_add(1)
-            .ok_or_else(|| PlayMusicError::new(Command::OctaveUp(command), "octave oveflow"))?;
+            .ok_or_else(|| PlayMusicError::new(command, "octave oveflow"))?;
         Ok(())
     }
 
@@ -315,7 +323,7 @@ impl ChannelPlayer {
         self.octave = self
             .octave
             .checked_sub(1)
-            .ok_or_else(|| PlayMusicError::new(Command::OctaveDown(command), "octave underflow"))?;
+            .ok_or_else(|| PlayMusicError::new(command, "octave underflow"))?;
         Ok(())
     }
 
@@ -326,13 +334,22 @@ impl ChannelPlayer {
 
     fn handle_timbre_command(&mut self, command: TimbreCommand) -> Result<(), PlayMusicError> {
         if self.oscillator.set_timbre(command.timbre()) {
+            self.timbre = Timbres::constant(command.timbre());
             Ok(())
         } else {
-            Err(PlayMusicError::new(
-                Command::Timbre(command),
-                "unsupported timbre value",
-            ))
+            Err(PlayMusicError::new(command, "unsupported timbre value"))
         }
+    }
+
+    fn handle_timbres_command(&mut self, command: TimbresCommand) -> Result<(), PlayMusicError> {
+        self.timbre = self
+            .macros
+            .timbres
+            .get(&command.macro_number())
+            .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
+            .timbres()
+            .clone();
+        Ok(())
     }
 
     fn handle_default_note_duration_command(
@@ -384,10 +401,7 @@ impl ChannelPlayer {
             }
         }
         if stack_size > 0 {
-            return Err(PlayMusicError::new(
-                Command::RepeatStart(command),
-                "no maching ']'",
-            ));
+            return Err(PlayMusicError::new(command, "no maching ']'"));
         }
 
         self.repeat_stack.push(Repeat::new(self.command_index));
@@ -399,10 +413,7 @@ impl ChannelPlayer {
         command: RepeatEndCommand,
     ) -> Result<(), PlayMusicError> {
         let Some(mut repeat) = self.repeat_stack.pop() else {
-            return Err(PlayMusicError::new(
-                Command::RepeatEnd(command),
-                "no maching '['",
-            ));
+            return Err(PlayMusicError::new(command, "no maching '['"));
         };
         if repeat.count < command.count() {
             self.command_index = repeat.start_index;
@@ -420,10 +431,7 @@ impl ChannelPlayer {
         for c in &self.commands[self.command_index..] {
             match c {
                 Command::TupletStart(_) => {
-                    return Err(PlayMusicError::new(
-                        Command::TupletStart(command),
-                        "nested tuplet",
-                    ));
+                    return Err(PlayMusicError::new(command, "nested tuplet"));
                 }
                 Command::TupletEnd(c) => {
                     self.clocks.set_tuplet(note_count, c.note_duration());
@@ -440,10 +448,7 @@ impl ChannelPlayer {
                 _ => {}
             }
         }
-        Err(PlayMusicError::new(
-            Command::TupletStart(command),
-            "no maching '}'",
-        ))
+        Err(PlayMusicError::new(command, "no maching '}'"))
     }
 
     fn handle_tuplet_end_command(
@@ -461,10 +466,7 @@ impl ChannelPlayer {
                 _ => {}
             }
         }
-        Err(PlayMusicError::new(
-            Command::TupletEnd(command),
-            "no maching '{'",
-        ))
+        Err(PlayMusicError::new(command, "no maching '{'"))
     }
 }
 
@@ -474,7 +476,10 @@ impl Iterator for ChannelPlayer {
     fn next(&mut self) -> Option<Self::Item> {
         while self.last_error.is_none() {
             if self.clocks.tick_frame_clock_if_need() {
-                self.handle_frame();
+                self.last_error = self.handle_frame().err();
+                if self.last_error.is_some() {
+                    return None;
+                }
             }
 
             if self.clocks.sample_clock() < self.clocks.note_clock() {
@@ -501,6 +506,7 @@ impl Iterator for ChannelPlayer {
                 Command::OctaveDown(c) => self.handle_octave_down_command(c),
                 Command::Detune(c) => self.handle_detune_command(c),
                 Command::Timbre(c) => self.handle_timbre_command(c),
+                Command::Timbres(c) => self.handle_timbres_command(c),
                 Command::DefaultNoteDuration(c) => self.handle_default_note_duration_command(c),
                 Command::Tempo(c) => self.handle_tempo_command(c),
                 Command::DataSkip(c) => self.handle_data_skip_command(c),

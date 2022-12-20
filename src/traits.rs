@@ -1,5 +1,5 @@
-pub trait FrameValue {
+pub trait NthFrameItem {
     type Item;
 
-    fn frame_value(&self, frame_index: usize) -> Self::Item;
+    fn nth_frame_item(&self, frame_index: usize) -> Self::Item;
 }

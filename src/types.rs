@@ -5,7 +5,7 @@ use textparse::{
     Parse, ParseError, ParseResult, Parser, Position, Span,
 };
 
-use crate::{comment::CommentsOrWhitespaces, traits::FrameValue};
+use crate::{comment::CommentsOrWhitespaces, traits::NthFrameItem};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sample(f32);
@@ -49,7 +49,7 @@ impl Mul<f32> for Sample {
     }
 }
 
-#[derive(Debug, Clone, Copy, Span, Parse)]
+#[derive(Debug, Default, Clone, Copy, Span, Parse)]
 pub struct Timbre(U8);
 
 impl Timbre {
@@ -57,6 +57,9 @@ impl Timbre {
     pub const DUTY_CYCLE_25: u8 = 1;
     pub const DUTY_CYCLE_50: u8 = 2;
     pub const DUTY_CYCLE_75: u8 = 3;
+
+    pub const NOISE_NORMAL: u8 = 0;
+    pub const NOISE_LOOPED: u8 = 1;
 
     pub const fn get(self) -> u8 {
         self.0.get()
@@ -320,7 +323,7 @@ impl Parse for NonZeroU8 {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Span)]
 pub struct U8<const NAMED: bool = true> {
     start: Position,
     value: u8,
@@ -537,43 +540,39 @@ impl Default for Volume {
 }
 
 #[derive(Debug, Clone, Span)]
-pub struct VolumeEnvelope {
+struct LoopList<T> {
     start: Position,
-    volumes: Vec<Volume>,
+    items: Vec<T>,
     loop_point: usize,
     end: Position,
 }
 
-impl VolumeEnvelope {
-    pub fn constant(volume: Volume) -> Self {
+impl<T> LoopList<T> {
+    fn constant(item: T) -> Self {
         Self {
             start: Position::new(0),
-            volumes: vec![volume],
+            items: vec![item],
             loop_point: 0,
             end: Position::new(0),
         }
     }
-
-    pub fn is_constant(&self) -> bool {
-        self.volumes.len() == 1
-    }
 }
 
-impl Parse for VolumeEnvelope {
+impl<T: Parse> Parse for LoopList<T> {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
         let start = parser.current_position();
         let _: Char<'{'> = parser.parse()?;
 
         let mut loop_point = None;
-        let mut volumes = Vec::new();
+        let mut items = Vec::new();
         loop {
             let _: CommentsOrWhitespaces = parser.parse()?;
             if parser.parse::<Char<'|'>>().is_ok() {
-                loop_point = Some(volumes.len());
+                loop_point = Some(items.len());
                 let _: CommentsOrWhitespaces = parser.parse()?;
             }
 
-            volumes.push(parser.parse::<Volume>()?);
+            items.push(parser.parse::<T>()?);
 
             let _: CommentsOrWhitespaces = parser.parse()?;
             if parser.parse::<Char<','>>().is_ok() {
@@ -585,26 +584,72 @@ impl Parse for VolumeEnvelope {
             }
         }
         let end = parser.current_position();
-        let loop_point = loop_point.unwrap_or_else(|| volumes.len() - 1);
+        let loop_point = loop_point.unwrap_or_else(|| items.len() - 1);
         Ok(Self {
             start,
-            volumes,
+            items,
             loop_point,
             end,
         })
     }
 }
 
-impl FrameValue for VolumeEnvelope {
-    type Item = Volume;
+impl<T: Copy> NthFrameItem for LoopList<T> {
+    type Item = T;
 
-    fn frame_value(&self, frame_index: usize) -> Self::Item {
-        if let Some(item) = self.volumes.get(frame_index).copied() {
+    fn nth_frame_item(&self, frame_index: usize) -> Self::Item {
+        if let Some(item) = self.items.get(frame_index).copied() {
             item
         } else {
-            let i = frame_index - self.volumes.len();
-            let i = (i % (self.volumes.len() - self.loop_point)) + self.loop_point;
-            self.volumes[i]
+            let i = frame_index - self.items.len();
+            let i = (i % (self.items.len() - self.loop_point)) + self.loop_point;
+            self.items[i]
         }
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct VolumeEnvelope {
+    envelope: LoopList<Volume>,
+}
+
+impl VolumeEnvelope {
+    pub fn constant(volume: Volume) -> Self {
+        Self {
+            envelope: LoopList::constant(volume),
+        }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        self.envelope.items.len() == 1
+    }
+}
+
+impl NthFrameItem for VolumeEnvelope {
+    type Item = Volume;
+
+    fn nth_frame_item(&self, frame_index: usize) -> Self::Item {
+        self.envelope.nth_frame_item(frame_index)
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct Timbres {
+    list: LoopList<Timbre>,
+}
+
+impl Timbres {
+    pub fn constant(timbre: Timbre) -> Self {
+        Self {
+            list: LoopList::constant(timbre),
+        }
+    }
+}
+
+impl NthFrameItem for Timbres {
+    type Item = Timbre;
+
+    fn nth_frame_item(&self, frame_index: usize) -> Self::Item {
+        self.list.nth_frame_item(frame_index)
     }
 }

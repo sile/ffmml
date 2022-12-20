@@ -23,6 +23,7 @@ pub enum Command {
     OctaveDown(OctaveDownCommand),
     Detune(DetuneCommand),
     Timbre(TimbreCommand),
+    Timbres(TimbresCommand),
     DefaultNoteDuration(DefaultNoteDurationCommand),
     Tempo(TempoCommand),
     DataSkip(DataSkipCommand),
@@ -188,6 +189,18 @@ pub struct TimbreCommand {
 impl TimbreCommand {
     pub fn timbre(&self) -> Timbre {
         self.timbre
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct TimbresCommand {
+    _prefix: (Char<'@'>, Char<'@'>),
+    macro_number: MacroNumber,
+}
+
+impl TimbresCommand {
+    pub fn macro_number(&self) -> MacroNumber {
+        self.macro_number
     }
 }
 
