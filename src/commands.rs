@@ -24,6 +24,7 @@ pub enum Command {
     OctaveDown(OctaveDownCommand),
     Detune(DetuneCommand),
     PitchEnvelope(PitchEnvelopeCommand),
+    Vibrato(VibratoCommand),
     Timbre(TimbreCommand),
     Timbres(TimbresCommand),
     DefaultNoteDuration(DefaultNoteDurationCommand),
@@ -206,6 +207,22 @@ impl PitchEnvelopeCommand {
     }
 }
 
+#[derive(Debug, Clone, Span, Parse)]
+pub struct VibratoCommand {
+    _prefix: (Char<'M'>, Char<'P'>),
+    macro_number: Either<MacroNumber, Off>,
+}
+
+impl VibratoCommand {
+    pub fn macro_number(&self) -> Option<MacroNumber> {
+        if let Either::A(n) = self.macro_number {
+            Some(n)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug)]
 struct N255;
 
@@ -335,6 +352,7 @@ pub struct SlurCommand {
     _prefix: Char<'&'>,
 }
 
+// TODO: @q
 #[derive(Debug, Clone, Span, Parse)]
 pub struct QuantizeCommand {
     _prefix: Char<'q'>,

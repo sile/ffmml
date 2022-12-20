@@ -752,3 +752,30 @@ impl NthFrameItem for Timbres {
         self.list.nth_frame_item(frame_index)
     }
 }
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct Vibrato {
+    _open: Char<'{'>,
+    _space0: CommentsOrWhitespaces,
+    delay: U8,
+    _space1: CommentsOrWhitespaces,
+    speed: NonZeroU8,
+    _space2: CommentsOrWhitespaces,
+    depth: U8,
+    _space3: CommentsOrWhitespaces,
+    _close: Char<'}'>,
+}
+
+impl Vibrato {
+    pub fn delay(&self) -> u8 {
+        self.delay.get()
+    }
+
+    pub fn speed(&self) -> u8 {
+        self.speed.get()
+    }
+
+    pub fn depth(&self) -> u8 {
+        self.depth.get()
+    }
+}

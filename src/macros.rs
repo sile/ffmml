@@ -1,6 +1,6 @@
 use crate::{
     comment::CommentsOrWhitespaces,
-    types::{NoteEnvelope, PitchEnvelope, Timbres, VolumeEnvelope, U8},
+    types::{NoteEnvelope, PitchEnvelope, Timbres, Vibrato, VolumeEnvelope, U8},
 };
 use std::collections::BTreeMap;
 use textparse::{
@@ -14,6 +14,7 @@ pub struct Macros {
     pub timbres: BTreeMap<MacroNumber, TimbreMacro>,
     pub pitches: BTreeMap<MacroNumber, PitchMacro>,
     pub arpeggios: BTreeMap<MacroNumber, ArpeggioMacro>,
+    pub vibratos: BTreeMap<MacroNumber, VibratoMacro>,
 }
 
 impl Macros {
@@ -27,6 +28,8 @@ impl Macros {
                 self.pitches.insert(m.number(), m);
             } else if let Ok(m) = parser.parse::<ArpeggioMacro>() {
                 self.arpeggios.insert(m.number(), m);
+            } else if let Ok(m) = parser.parse::<VibratoMacro>() {
+                self.vibratos.insert(m.number(), m);
             } else {
                 return Err(ParseError);
             }
@@ -145,5 +148,21 @@ impl TimbreMacro {
 
     pub fn timbres(&self) -> &Timbres {
         &self.timbres
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct VibratoMacro {
+    key: MacroKey<(Char<'M'>, Char<'P'>)>,
+    vibrato: Vibrato,
+}
+
+impl VibratoMacro {
+    pub fn number(&self) -> MacroNumber {
+        self.key.number
+    }
+
+    pub fn vibrato(&self) -> &Vibrato {
+        &self.vibrato
     }
 }

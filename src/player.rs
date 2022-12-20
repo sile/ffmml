@@ -6,15 +6,15 @@ use crate::{
         NoteCommand, OctaveCommand, OctaveDownCommand, OctaveUpCommand, PitchEnvelopeCommand,
         QuantizeCommand, RepeatEndCommand, RepeatStartCommand, RestSignCommand, SlurCommand,
         TempoCommand, TieCommand, TimbreCommand, TimbresCommand, TrackLoopCommand,
-        TupletEndCommand, TupletStartCommand, VolumeCommand, VolumeDownCommand,
+        TupletEndCommand, TupletStartCommand, VibratoCommand, VolumeCommand, VolumeDownCommand,
         VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
     },
     macros::Macros,
     oscillators::Oscillator,
     traits::NthFrameItem,
     types::{
-        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, Sample, Timbre, Timbres, Volume,
-        VolumeEnvelope,
+        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, Sample, Timbre, Timbres, Vibrato,
+        Volume, VolumeEnvelope,
     },
     Music,
 };
@@ -144,6 +144,7 @@ struct ChannelPlayer {
     loop_point: Option<usize>,
     repeat_stack: Vec<Repeat>,
     note: Option<Note>,
+    vibrato: Option<Vibrato>,
     last_error: Option<PlayMusicError>,
 }
 
@@ -163,6 +164,7 @@ impl ChannelPlayer {
             arpeggio: None,
             repeat_stack: Vec::new(),
             note: None,
+            vibrato: None,
             last_error: None,
         }
     }
@@ -399,6 +401,22 @@ impl ChannelPlayer {
         Ok(())
     }
 
+    fn handle_vibrato_command(&mut self, command: VibratoCommand) -> Result<(), PlayMusicError> {
+        if let Some(n) = command.macro_number() {
+            self.vibrato = Some(
+                self.macros
+                    .vibratos
+                    .get(&n)
+                    .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
+                    .vibrato()
+                    .clone(),
+            );
+        } else {
+            self.vibrato = None;
+        }
+        Ok(())
+    }
+
     fn handle_timbre_command(&mut self, command: TimbreCommand) -> Result<(), PlayMusicError> {
         if self.oscillator.set_timbre(command.timbre()) {
             self.timbre = Timbres::constant(command.timbre());
@@ -579,6 +597,7 @@ impl Iterator for ChannelPlayer {
                 Command::OctaveDown(c) => self.handle_octave_down_command(c),
                 Command::Detune(c) => self.handle_detune_command(c),
                 Command::PitchEnvelope(c) => self.handle_pitch_envelope_command(c),
+                Command::Vibrato(c) => self.handle_vibrato_command(c),
                 Command::Timbre(c) => self.handle_timbre_command(c),
                 Command::Timbres(c) => self.handle_timbres_command(c),
                 Command::DefaultNoteDuration(c) => self.handle_default_note_duration_command(c),
