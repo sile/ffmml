@@ -2,17 +2,20 @@ use crate::{
     channel::{Channel, ChannelName},
     clocks::Clocks,
     commands::{
-        Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand, NoteCommand,
-        OctaveCommand, OctaveDownCommand, OctaveUpCommand, PitchEnvelopeCommand, QuantizeCommand,
-        RepeatEndCommand, RepeatStartCommand, RestSignCommand, SlurCommand, TempoCommand,
-        TieCommand, TimbreCommand, TimbresCommand, TrackLoopCommand, TupletEndCommand,
-        TupletStartCommand, VolumeCommand, VolumeDownCommand, VolumeEnvelopeCommand,
-        VolumeUpCommand, WaitCommand,
+        ArpeggioCommand, Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand,
+        NoteCommand, OctaveCommand, OctaveDownCommand, OctaveUpCommand, PitchEnvelopeCommand,
+        QuantizeCommand, RepeatEndCommand, RepeatStartCommand, RestSignCommand, SlurCommand,
+        TempoCommand, TieCommand, TimbreCommand, TimbresCommand, TrackLoopCommand,
+        TupletEndCommand, TupletStartCommand, VolumeCommand, VolumeDownCommand,
+        VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
     },
     macros::Macros,
     oscillators::Oscillator,
     traits::NthFrameItem,
-    types::{Detune, Note, Octave, PitchEnvelope, Sample, Timbre, Timbres, Volume, VolumeEnvelope},
+    types::{
+        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, Sample, Timbre, Timbres, Volume,
+        VolumeEnvelope,
+    },
     Music,
 };
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
@@ -137,6 +140,7 @@ struct ChannelPlayer {
     volume: VolumeEnvelope,
     timbre: Timbres,
     clocks: Clocks,
+    arpeggio: Option<NoteEnvelope>,
     loop_point: Option<usize>,
     repeat_stack: Vec<Repeat>,
     note: Option<Note>,
@@ -156,6 +160,7 @@ impl ChannelPlayer {
             timbre: Timbres::constant(Timbre::default()),
             clocks: Clocks::new(sample_rate),
             loop_point: None,
+            arpeggio: None,
             repeat_stack: Vec::new(),
             note: None,
             last_error: None,
@@ -182,17 +187,58 @@ impl ChannelPlayer {
         if !self.oscillator.set_timbre(timbre) {
             return Err(PlayMusicError::new(timbre, "unsupported timbre value"));
         }
+        self.update_frequency()?;
+        Ok(())
+    }
+
+    fn update_frequency(&mut self) -> Result<(), PlayMusicError> {
+        let Some(mut note) = self.note else {
+            return Ok(());
+        };
+
+        let frame_index = self.clocks.frame_index();
+        let detune = self.detune.nth_frame_item(frame_index);
+        let mut octave = self.octave;
+
+        if let Some(arpeggio) = &self.arpeggio {
+            let result = note.apply_note_number_delta(arpeggio.nth_frame_item(frame_index));
+            note = result.0;
+            if result.1 < 0 {
+                octave = octave
+                    .checked_sub(result.1.abs() as u8)
+                    .ok_or_else(|| PlayMusicError::new(note, "octave underflow"))?;
+            } else {
+                octave = octave
+                    .checked_add(result.1 as u8)
+                    .ok_or_else(|| PlayMusicError::new(note, "octave overflow"))?;
+            };
+        };
+        self.oscillator.set_frequency(note, octave, detune);
         Ok(())
     }
 
     fn handle_note_command(&mut self, command: NoteCommand) -> Result<(), PlayMusicError> {
-        let detune = self.detune.nth_frame_item(self.clocks.frame_index());
-        self.oscillator
-            .set_frequency(command.note(), self.octave, detune);
+        self.note = Some(command.note());
+        self.update_frequency()?;
         self.clocks.tick_note_clock(command.note_duration());
         self.clocks.reset_frame_clock(self.clocks.sample_clock());
         self.handle_frame()?;
-        self.note = Some(command.note());
+        Ok(())
+    }
+
+    fn handle_arpeggio_command(&mut self, command: ArpeggioCommand) -> Result<(), PlayMusicError> {
+        if let Some(n) = command.macro_number() {
+            self.arpeggio = Some(
+                self.macros
+                    .arpeggios
+                    .get(&n)
+                    .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
+                    .envelope()
+                    .clone(),
+            );
+        } else {
+            self.arpeggio = None;
+        }
         Ok(())
     }
 
@@ -205,10 +251,7 @@ impl ChannelPlayer {
     }
 
     fn handle_wait_command(&mut self, command: WaitCommand) -> Result<(), PlayMusicError> {
-        if let Some(note) = self.note {
-            let detune = self.detune.nth_frame_item(self.clocks.frame_index());
-            self.oscillator.set_frequency(note, self.octave, detune);
-        }
+        self.update_frequency()?;
         self.clocks.tick_note_clock(command.note_duration());
         Ok(())
     }
@@ -526,6 +569,7 @@ impl Iterator for ChannelPlayer {
 
             let result = match command {
                 Command::Note(c) => self.handle_note_command(c),
+                Command::Arpeggio(c) => self.handle_arpeggio_command(c),
                 Command::Volume(c) => self.handle_volume_command(c),
                 Command::VolumeUp(c) => self.handle_volume_up_command(c),
                 Command::VolumeDown(c) => self.handle_volume_down_command(c),

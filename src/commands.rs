@@ -14,6 +14,7 @@ use textparse::{
 #[parse(name = "command")]
 pub enum Command {
     Note(NoteCommand),
+    Arpeggio(ArpeggioCommand),
     Volume(VolumeCommand),
     VolumeUp(VolumeUpCommand),
     VolumeDown(VolumeDownCommand),
@@ -53,6 +54,22 @@ impl NoteCommand {
 
     pub fn note_duration(&self) -> NoteDuration {
         self.duration
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct ArpeggioCommand {
+    _prefix: (Char<'E'>, Char<'N'>),
+    macro_number: Either<MacroNumber, Off>,
+}
+
+impl ArpeggioCommand {
+    pub fn macro_number(&self) -> Option<MacroNumber> {
+        if let Either::A(n) = self.macro_number {
+            Some(n)
+        } else {
+            None
+        }
     }
 }
 

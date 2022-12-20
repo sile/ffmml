@@ -133,6 +133,26 @@ impl Note {
         self.accidentals
     }
 
+    pub fn apply_note_number_delta(mut self, delta: i8) -> (Self, i8) {
+        let mut octave_delta = delta / 12;
+        let delta = delta % 12;
+
+        let old_offset = self.offset_from_c();
+        self.accidentals = self.accidentals.saturating_add(delta);
+        let (letter, has_sharp) = self.normalize();
+        self.letter = letter;
+        self.accidentals = has_sharp as i8;
+        let new_offset = self.offset_from_c();
+
+        if delta > 0 && new_offset < old_offset {
+            octave_delta += 1;
+        } else if delta < 0 && new_offset > old_offset {
+            octave_delta -= 1;
+        }
+
+        (self, octave_delta)
+    }
+
     pub fn offset_from_a(self) -> usize {
         match self.normalize() {
             (Letter::A, false) => 0,
@@ -147,6 +167,15 @@ impl Note {
             (Letter::F, true) => 9,
             (Letter::G, false) => 10,
             (Letter::G, true) => 11,
+        }
+    }
+
+    fn offset_from_c(self) -> usize {
+        let offset = self.offset_from_a();
+        if let Some(n) = offset.checked_sub(3) {
+            n
+        } else {
+            offset + 9
         }
     }
 
@@ -573,7 +602,7 @@ impl Default for Volume {
 struct LoopList<T> {
     start: Position,
     items: Vec<T>,
-    loop_point: usize,
+    loop_point: Option<usize>,
     end: Position,
 }
 
@@ -582,7 +611,7 @@ impl<T> LoopList<T> {
         Self {
             start: Position::new(0),
             items: vec![item],
-            loop_point: 0,
+            loop_point: None,
             end: Position::new(0),
         }
     }
@@ -614,7 +643,6 @@ impl<T: Parse> Parse for LoopList<T> {
             }
         }
         let end = parser.current_position();
-        let loop_point = loop_point.unwrap_or_else(|| items.len() - 1);
         Ok(Self {
             start,
             items,
@@ -631,8 +659,9 @@ impl<T: Copy> NthFrameItem for LoopList<T> {
         if let Some(item) = self.items.get(frame_index).copied() {
             item
         } else {
+            let loop_point = self.loop_point.unwrap_or_else(|| self.items.len() - 1);
             let i = frame_index - self.items.len();
-            let i = (i % (self.items.len() - self.loop_point)) + self.loop_point;
+            let i = (i % (self.items.len() - loop_point)) + loop_point;
             self.items[i]
         }
     }
@@ -681,6 +710,25 @@ impl NthFrameItem for PitchEnvelope {
 
     fn nth_frame_item(&self, frame_index: usize) -> Self::Item {
         self.envelope.nth_frame_item(frame_index)
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct NoteEnvelope {
+    envelope: LoopList<I8>,
+}
+
+impl NthFrameItem for NoteEnvelope {
+    type Item = i8;
+
+    fn nth_frame_item(&self, frame_index: usize) -> Self::Item {
+        let mut v: i8 = 0;
+        for i in 0..frame_index {
+            if i < self.envelope.items.len() || self.envelope.loop_point.is_some() {
+                v = v.saturating_add(self.envelope.nth_frame_item(frame_index).get());
+            }
+        }
+        v
     }
 }
 
