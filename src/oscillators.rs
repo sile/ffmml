@@ -86,6 +86,7 @@ pub struct PulseWave {
     frequency: f32,
     duty_cycle: f32,
     phase: f32,
+    mute: bool,
 }
 
 impl PulseWave {
@@ -94,10 +95,15 @@ impl PulseWave {
             frequency: 0.0, // dummy initial value
             duty_cycle: 0.125,
             phase: 0.0,
+            mute: false,
         }
     }
 
     fn sample(&mut self, sample_rate: u16, lfo: Option<&mut PitchLfo>) -> Sample {
+        if self.mute {
+            return Sample::ZERO;
+        }
+
         let frequency = if let Some(lfo) = lfo {
             let d = lfo.sample(sample_rate);
             register_to_frequency(frequency_to_register(self.frequency) - d)
@@ -113,7 +119,9 @@ impl PulseWave {
         }
     }
 
-    fn mute(&mut self, _mute: bool) {}
+    fn mute(&mut self, mute: bool) {
+        self.mute = mute;
+    }
 
     fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
         let mut o = i32::from(octave.get());
@@ -282,6 +290,7 @@ pub struct Noise {
     frequency: f32,
     looped_noise: bool,
     residual: f32,
+    mute: bool,
 }
 
 impl Noise {
@@ -291,6 +300,7 @@ impl Noise {
             frequency: 0.0, // dummy initial value
             looped_noise: false,
             residual: 0.0,
+            mute: false,
         }
     }
 
@@ -311,6 +321,10 @@ impl Noise {
     }
 
     fn sample(&mut self, sample_rate: u16, _lfo: Option<&mut PitchLfo>) -> Sample {
+        if self.mute {
+            return Sample::ZERO;
+        }
+
         let mut n = self.residual + SYSTEM_CLOCK_HZ / f32::from(sample_rate);
         while n >= self.frequency {
             let b = if self.looped_noise {
@@ -330,7 +344,9 @@ impl Noise {
         }
     }
 
-    fn mute(&mut self, _mute: bool) {}
+    fn mute(&mut self, mute: bool) {
+        self.mute = mute;
+    }
 
     fn sweep_frequency(&mut self, _depth: i8) {}
 }
