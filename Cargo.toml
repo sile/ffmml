@@ -10,7 +10,10 @@ num = "0.4"
 textparse = "0.0.2"
 
 [workspace]
-members = ["ffmmlc"]
+members = [
+  "ffmmlc",
+  "ffmml_gui",
+]
 
 [patch.crates-io]
 textparse = { path = "../textparse/" }
