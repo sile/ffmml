@@ -1,6 +1,6 @@
 use crate::{
     clocks::Clock,
-    types::{Detune, Letter, Note, Octave, Sample, Timbre},
+    types::{Detune, Letter, Note, Octave, OscillatorKind, Sample, Timbre},
 };
 
 const MASTER_CLOCK_HZ: f32 = 21477272.7272;
@@ -14,6 +14,15 @@ pub enum Oscillator {
 }
 
 impl Oscillator {
+    pub fn from_kind(kind: OscillatorKind) -> Self {
+        match kind.get() {
+            OscillatorKind::PULSE_WAVE => Self::pulse_wave(),
+            OscillatorKind::TRIANGLE_WAVE => Self::triangle_wave(),
+            OscillatorKind::NOISE => Self::noise(),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn pulse_wave() -> Self {
         Self::PulseWave(PulseWave::new())
     }

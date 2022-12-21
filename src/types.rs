@@ -822,3 +822,31 @@ impl PitchSweep {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, Span)]
+pub struct OscillatorKind(U8);
+
+impl OscillatorKind {
+    pub const PULSE_WAVE: u8 = 0;
+    pub const TRIANGLE_WAVE: u8 = 1;
+    pub const NOISE: u8 = 2;
+
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+}
+
+impl Parse for OscillatorKind {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let n: U8 = parser.parse()?;
+        if n.get() < 3 {
+            Ok(Self(n))
+        } else {
+            Err(ParseError)
+        }
+    }
+
+    fn name() -> Option<fn() -> String> {
+        Some(|| "0 (pulse wave), 1 (triangle wave), or 2 (noise)".to_owned())
+    }
+}

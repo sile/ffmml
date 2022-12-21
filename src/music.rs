@@ -5,6 +5,7 @@ use crate::{
     comment::CommentsOrWhitespaces,
     definitions::{Composer, Definition, Programer, Title},
     macros::Macros,
+    oscillators::Oscillator,
     player::MusicPlayer,
 };
 use textparse::{ParseResult, Parser};
@@ -20,6 +21,8 @@ pub struct Music {
 
 impl Music {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let mut channels = Channels::new();
+
         let mut title = None;
         let mut composer = None;
         let mut programer = None;
@@ -39,15 +42,20 @@ impl Music {
                 Definition::Programer(x) => {
                     programer = Some(x);
                 }
+                Definition::Channel(x) => {
+                    for name in x.channel_names().names() {
+                        channels.add_channel(*name, Oscillator::from_kind(x.oscillator_kind()));
+                    }
+                }
             }
         }
 
+        // TODOO: macro / definition order fix
         let _: CommentsOrWhitespaces = parser.parse()?;
         let mut macros = Macros::default();
         macros.parse(parser)?;
 
         let _: CommentsOrWhitespaces = parser.parse()?;
-        let mut channels = Channels::new();
         channels.parse(parser)?;
 
         Ok(Self {

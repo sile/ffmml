@@ -25,6 +25,10 @@ impl Channels {
         Self(channels)
     }
 
+    pub fn add_channel(&mut self, name: ChannelName, oscillator: Oscillator) {
+        self.0.insert(name, Channel::new(oscillator));
+    }
+
     pub fn parse(&mut self, parser: &mut Parser) -> ParseResult<()> {
         while !parser.is_eos() {
             let names = parser
@@ -126,7 +130,7 @@ impl ChannelName {
 }
 
 #[derive(Debug, Clone, Span)]
-struct ChannelNames {
+pub struct ChannelNames {
     start: Position,
     names: BTreeSet<ChannelName>,
     end: Position,
@@ -141,6 +145,10 @@ impl ChannelNames {
         } else {
             Ok(self)
         }
+    }
+
+    pub fn names(&self) -> &BTreeSet<ChannelName> {
+        &self.names
     }
 }
 

@@ -1,4 +1,8 @@
-use crate::comment::{Comment, MaybeComment};
+use crate::{
+    channel::ChannelNames,
+    comment::{Comment, MaybeComment},
+    types::OscillatorKind,
+};
 use std::marker::PhantomData;
 use textparse::{
     components::{Char, NonEmpty, OneOfThree, StartsWith, StaticStr, While},
@@ -10,6 +14,7 @@ pub enum Definition {
     Title(Title),
     Composer(Composer),
     Programer(Programer),
+    Channel(Channel),
 }
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -70,6 +75,57 @@ impl StaticStr for ProgramerStr {
 }
 
 #[derive(Debug, Clone, Span)]
+pub struct Channel {
+    start: Position,
+    channel_names: ChannelNames,
+    oscillator_kind: OscillatorKind,
+    end: Position,
+}
+
+impl Channel {
+    pub fn channel_names(&self) -> &ChannelNames {
+        &self.channel_names
+    }
+
+    pub fn oscillator_kind(&self) -> OscillatorKind {
+        self.oscillator_kind
+    }
+}
+
+impl Parse for Channel {
+    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+        let start = parser.current_position();
+        let _: Char<'#'> = parser.parse()?;
+        let _: StartsWith<ChannelStr> = parser.parse()?;
+        let _: NonEmpty<While<SpaceOrTabOrComment>> = parser.parse()?;
+        let channel_names = parser.parse()?;
+        let _: NonEmpty<While<SpaceOrTabOrComment>> = parser.parse()?;
+        let oscillator_kind = parser.parse()?;
+        let end = parser.current_position();
+
+        Ok(Self {
+            start,
+            channel_names,
+            oscillator_kind,
+            end,
+        })
+    }
+
+    fn name() -> Option<fn() -> String> {
+        Some(|| "#CHANNEL".to_owned())
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ChannelStr;
+
+impl StaticStr for ChannelStr {
+    fn static_str() -> &'static str {
+        "CHANNEL"
+    }
+}
+
+#[derive(Debug, Clone, Span)]
 struct DefineString<T> {
     start: Position,
     label: PhantomData<T>,
@@ -105,6 +161,4 @@ impl<T: Parse> Parse for DefineString<T> {
     }
 }
 
-type SpaceOrTabOrComment = OneOfThree<Char<' '>, Char<'\t'>, Comment>;
-
-// TODO: Add ChannelDefinition
+type SpaceOrTabOrComment = OneOfThree<Char<' ', false>, Char<'\t', false>, Comment>;
