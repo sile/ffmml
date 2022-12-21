@@ -170,7 +170,7 @@ impl Note {
         }
     }
 
-    fn offset_from_c(self) -> usize {
+    pub fn offset_from_c(self) -> usize {
         let offset = self.offset_from_a();
         if let Some(n) = offset.checked_sub(3) {
             n

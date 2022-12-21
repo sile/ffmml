@@ -10,7 +10,7 @@ const SYSTEM_CLOCK_HZ: f32 = MASTER_CLOCK_HZ / 12.0;
 pub enum Oscillator {
     PulseWave(PulseWave),
     TriangleWave(TriangleWave),
-    // Noise,
+    Noise(Noise),
 }
 
 impl Oscillator {
@@ -22,10 +22,15 @@ impl Oscillator {
         Self::TriangleWave(TriangleWave::new())
     }
 
+    pub fn noise() -> Self {
+        Self::Noise(Noise::new())
+    }
+
     pub fn sample(&mut self, sample_rate: u16, lfo: Option<&mut PitchLfo>) -> Sample {
         match self {
             Oscillator::PulseWave(o) => o.sample(sample_rate, lfo),
             Oscillator::TriangleWave(o) => o.sample(sample_rate, lfo),
+            Oscillator::Noise(o) => o.sample(sample_rate, lfo),
         }
     }
 
@@ -33,6 +38,7 @@ impl Oscillator {
         match self {
             Oscillator::PulseWave(o) => o.mute(mute),
             Oscillator::TriangleWave(o) => o.mute(mute),
+            Oscillator::Noise(o) => o.mute(mute),
         }
     }
 
@@ -40,6 +46,7 @@ impl Oscillator {
         match self {
             Oscillator::PulseWave(o) => o.set_frequency(note, octave, detune),
             Oscillator::TriangleWave(o) => o.set_frequency(note, octave, detune),
+            Oscillator::Noise(o) => o.set_frequency(note, octave, detune),
         }
     }
 
@@ -47,6 +54,7 @@ impl Oscillator {
         match self {
             Oscillator::PulseWave(o) => o.sweep_frequency(depth),
             Oscillator::TriangleWave(o) => o.sweep_frequency(depth),
+            Oscillator::Noise(o) => o.sweep_frequency(depth),
         }
     }
 
@@ -54,6 +62,7 @@ impl Oscillator {
         match self {
             Oscillator::PulseWave(o) => o.set_timbre(timbre),
             Oscillator::TriangleWave(o) => o.set_timbre(timbre),
+            Oscillator::Noise(o) => o.set_timbre(timbre),
         }
     }
 }
@@ -256,6 +265,65 @@ impl TriangleWave {
         // TODO: Add a sentinel value indicating "unset"
         timbre.get() == 0
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Noise {
+    register: u16,
+    frequency: f32, // TODO: rename
+    looped_noise: bool,
+    residual: f32,
+}
+
+impl Noise {
+    fn new() -> Self {
+        Self {
+            register: 1,
+            frequency: 4.0, // TODO
+            looped_noise: false,
+            residual: 0.0,
+        }
+    }
+
+    fn set_frequency(&mut self, note: Note, _octave: Octave, _detune: Detune) {
+        const TABLE: [f32; 12] = [
+            4., 8., 16., 32., 64., 96., 128., 160., 202., 254., 380., 508.,
+        ];
+        self.frequency = TABLE[note.offset_from_c()];
+    }
+
+    fn set_timbre(&mut self, timbre: Timbre) -> bool {
+        match timbre.get() {
+            Timbre::NOISE_NORMAL => self.looped_noise = false,
+            Timbre::NOISE_LOOPED => self.looped_noise = true,
+            _ => return false,
+        }
+        true
+    }
+
+    fn sample(&mut self, sample_rate: u16, _lfo: Option<&mut PitchLfo>) -> Sample {
+        let mut n = self.residual + SYSTEM_CLOCK_HZ / f32::from(sample_rate);
+        while n >= self.frequency {
+            let b = if self.looped_noise {
+                (self.register & 1) ^ ((self.register >> 6) & 1)
+            } else {
+                (self.register & 1) ^ ((self.register >> 1) & 1)
+            };
+            self.register >>= 1;
+            self.register |= b << 14;
+            n -= self.frequency;
+        }
+        self.residual = n;
+        if self.register & 1 == 0 {
+            Sample::MAX
+        } else {
+            Sample::ZERO
+        }
+    }
+
+    fn mute(&mut self, _mute: bool) {}
+
+    fn sweep_frequency(&mut self, _depth: i8) {}
 }
 
 #[derive(Debug)]
