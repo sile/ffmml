@@ -10,7 +10,7 @@ num = "0.4"
 textparse = "0.0.2"
 
 [workspace]
-members = ["ffmml2wav"] # TODO: ffmmlc
+members = ["ffmmlc"]
 
 [patch.crates-io]
 textparse = { path = "../textparse/" }

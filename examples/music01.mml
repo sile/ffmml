@@ -10,11 +10,11 @@
 
 ABCD t150
 
-A l8 o4 @01 @v0
+A l8 o4 @01 @v0 q2
 A [c d e f @v1 g4 @v0 a16 b16 >c c d e f @v1 g4 @v0 a16 b16 >c<<]2
 
-C l4 o3 q6
+C !l4 o3 q6
 C [c e g8 g8 a16 b16 >c8 c e g8 g8 a16 b16 >c8<<]4
 
-D l4 @v2 @0
+D !l4 @v2 @0
 D [@v2 b @v3 e @v2 b @v3 e @v2 b @v3 e @v2 b @v3 e8 @v2 b8]4

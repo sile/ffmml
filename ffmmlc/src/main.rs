@@ -1,4 +1,4 @@
-use ffmml2wav::wav::Wav;
+use ffmmlc::wav::Wav;
 use std::io::Read;
 
 fn main() {
