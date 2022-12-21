@@ -29,6 +29,13 @@ impl Oscillator {
         }
     }
 
+    pub fn mute(&mut self, mute: bool) {
+        match self {
+            Oscillator::PulseWave(o) => o.mute(mute),
+            Oscillator::TriangleWave(o) => o.mute(mute),
+        }
+    }
+
     pub fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
         match self {
             Oscillator::PulseWave(o) => o.set_frequency(note, octave, detune),
@@ -88,6 +95,8 @@ impl PulseWave {
         }
     }
 
+    fn mute(&mut self, mute: bool) {}
+
     fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
         let mut o = i32::from(octave.get());
         if !matches!(note.letter(), Letter::A | Letter::B) {
@@ -124,10 +133,17 @@ impl PulseWave {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MuteState {
+    Off { count: usize },
+    On { count: usize },
+}
+
 #[derive(Debug, Clone)]
 pub struct TriangleWave {
     frequency: f32,
     phase: f32,
+    mute: MuteState,
 }
 
 impl TriangleWave {
@@ -135,6 +151,19 @@ impl TriangleWave {
         Self {
             frequency: 0.0, // dummy initial value
             phase: 0.0,
+            mute: MuteState::Off { count: 0 },
+        }
+    }
+
+    fn mute(&mut self, mute: bool) {
+        match self.mute {
+            MuteState::Off { count } if mute => {
+                self.mute = MuteState::On { count };
+            }
+            MuteState::On { count } if !mute => {
+                self.mute = MuteState::Off { count };
+            }
+            _ => {}
         }
     }
 
@@ -182,10 +211,24 @@ impl TriangleWave {
             self.frequency
         };
 
+        const X: usize = 100;
+
         self.phase += frequency / f32::from(sample_rate);
         self.phase -= self.phase.floor();
         let i = (self.phase * N).floor() as usize;
-        Sample::new(WAVEFORM[i])
+        let s = Sample::new(WAVEFORM[i]);
+        match self.mute {
+            MuteState::On { count: 0 } => Sample::ZERO,
+            MuteState::Off { count: X } => s,
+            MuteState::On { count } => {
+                self.mute = MuteState::On { count: count - 1 };
+                s * (count as f32 / X as f32)
+            }
+            MuteState::Off { count } => {
+                self.mute = MuteState::Off { count: count + 1 };
+                s * (count as f32 / X as f32)
+            }
+        }
     }
 
     fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {

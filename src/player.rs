@@ -173,19 +173,14 @@ impl ChannelPlayer {
 
     fn sample(&mut self) -> Sample {
         self.clocks.tick_sample_clock();
-        if self.note.is_none() {
-            Sample::ZERO
-        } else {
-            let sample = self
-                .oscillator
-                .sample(self.clocks.sample_rate(), self.pitch_lfo.as_mut());
-            if self.clocks.sample_clock() < self.clocks.quantize_clock() {
-                let volume = self.volume.nth_frame_item(self.clocks.frame_index());
-                sample * volume.as_ratio()
-            } else {
-                Sample::ZERO
-            }
+        let sample = self
+            .oscillator
+            .sample(self.clocks.sample_rate(), self.pitch_lfo.as_mut());
+        if !(self.clocks.sample_clock() < self.clocks.quantize_clock()) {
+            self.oscillator.mute(true);
         }
+        let volume = self.volume.nth_frame_item(self.clocks.frame_index());
+        sample * volume.as_ratio()
     }
 
     fn handle_frame(&mut self) -> Result<(), PlayMusicError> {
@@ -242,6 +237,7 @@ impl ChannelPlayer {
         if let Some(lfo) = &mut self.pitch_lfo {
             lfo.reset_timer();
         }
+        self.oscillator.mute(false);
         Ok(())
     }
 
@@ -264,8 +260,9 @@ impl ChannelPlayer {
     fn handle_rest_sign_command(&mut self, command: RestSignCommand) -> Result<(), PlayMusicError> {
         self.clocks.tick_note_clock(command.note_duration());
         self.clocks.reset_frame_clock(self.clocks.sample_clock());
-        self.handle_frame()?;
         self.note = None;
+        self.handle_frame()?;
+        self.oscillator.mute(true);
         Ok(())
     }
 
