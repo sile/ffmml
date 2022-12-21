@@ -17,13 +17,9 @@ impl Channels {
         let channels = [
             (ChannelName::A, Channel::new(Oscillator::pulse_wave())),
             (ChannelName::B, Channel::new(Oscillator::pulse_wave())),
-            (ChannelName::C, Channel::new(Oscillator::pulse_wave())),
+            (ChannelName::C, Channel::new(Oscillator::triangle_wave())),
             (ChannelName::D, Channel::new(Oscillator::pulse_wave())),
             // TODO
-            // (
-            //     ChannelName::C,
-            //     Channel::new(Oscillator::triangle_wave(44100)),
-            // ),
             // (ChannelName::D, Channel::new(Oscillator::noise(44100))),
         ]
         .into_iter()

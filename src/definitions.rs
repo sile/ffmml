@@ -106,3 +106,5 @@ impl<T: Parse> Parse for DefineString<T> {
 }
 
 type SpaceOrTabOrComment = OneOfThree<Char<' '>, Char<'\t'>, Comment>;
+
+// TODO: Add ChannelDefinition

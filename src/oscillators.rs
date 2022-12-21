@@ -9,7 +9,7 @@ const SYSTEM_CLOCK_HZ: f32 = MASTER_CLOCK_HZ / 12.0;
 #[derive(Debug, Clone)]
 pub enum Oscillator {
     PulseWave(PulseWave),
-    // TriangleWave,
+    TriangleWave(TriangleWave),
     // Noise,
 }
 
@@ -18,27 +18,35 @@ impl Oscillator {
         Self::PulseWave(PulseWave::new())
     }
 
+    pub fn triangle_wave() -> Self {
+        Self::TriangleWave(TriangleWave::new())
+    }
+
     pub fn sample(&mut self, sample_rate: u16, lfo: Option<&mut PitchLfo>) -> Sample {
         match self {
             Oscillator::PulseWave(o) => o.sample(sample_rate, lfo),
+            Oscillator::TriangleWave(o) => o.sample(sample_rate, lfo),
         }
     }
 
     pub fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
         match self {
             Oscillator::PulseWave(o) => o.set_frequency(note, octave, detune),
+            Oscillator::TriangleWave(o) => o.set_frequency(note, octave, detune),
         }
     }
 
     pub fn sweep_frequency(&mut self, depth: i8) {
         match self {
             Oscillator::PulseWave(o) => o.sweep_frequency(depth),
+            Oscillator::TriangleWave(o) => o.sweep_frequency(depth),
         }
     }
 
     pub fn set_timbre(&mut self, timbre: Timbre) -> bool {
         match self {
             Oscillator::PulseWave(o) => o.set_timbre(timbre),
+            Oscillator::TriangleWave(o) => o.set_timbre(timbre),
         }
     }
 }
@@ -113,6 +121,100 @@ impl PulseWave {
             _ => return false,
         };
         true
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TriangleWave {
+    frequency: f32,
+    phase: f32,
+}
+
+impl TriangleWave {
+    fn new() -> Self {
+        Self {
+            frequency: 0.0, // dummy initial value
+            phase: 0.0,
+        }
+    }
+
+    fn sample(&mut self, sample_rate: u16, lfo: Option<&mut PitchLfo>) -> Sample {
+        const WAVEFORM: [f32; 32] = [
+            1.0,
+            0.8666667,
+            0.73333335,
+            0.6,
+            0.46666667,
+            0.33333334,
+            0.2,
+            0.06666667,
+            -0.06666667,
+            -0.2,
+            -0.33333334,
+            -0.46666667,
+            -0.6,
+            -0.73333335,
+            -0.8666667,
+            -1.0,
+            -1.0,
+            -0.8666667,
+            -0.73333335,
+            -0.6,
+            -0.46666667,
+            -0.33333334,
+            -0.2,
+            -0.06666667,
+            0.06666667,
+            0.2,
+            0.33333334,
+            0.46666667,
+            0.6,
+            0.73333335,
+            0.8666667,
+            1.0,
+        ];
+        const N: f32 = WAVEFORM.len() as f32;
+
+        let frequency = if let Some(lfo) = lfo {
+            let d = lfo.sample(sample_rate);
+            register_to_frequency(frequency_to_register(self.frequency) - d)
+        } else {
+            self.frequency
+        };
+
+        self.phase += frequency / f32::from(sample_rate);
+        self.phase -= self.phase.floor();
+        let i = (self.phase * N).floor() as usize;
+        Sample::new(WAVEFORM[i])
+    }
+
+    fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
+        let mut o = i32::from(octave.get());
+        if !matches!(note.letter(), Letter::A | Letter::B) {
+            o -= 1;
+        }
+        let ratio = FREQUENCY_RATIO_TABLE[note.offset_from_a()];
+        let a = 27.5 * 2f32.powi(o - 1);
+        self.frequency = a * ratio;
+        if detune.get() != 0 {
+            let d = f32::from(detune.get());
+            self.frequency = register_to_frequency(frequency_to_register(self.frequency) - d);
+        }
+    }
+
+    fn sweep_frequency(&mut self, depth: i8) {
+        let mut register = frequency_to_register(self.frequency);
+        if depth >= 0 {
+            register -= register / 2f32.powi(i32::from(depth));
+        } else {
+            register += register / 2f32.powi(i32::from(-depth));
+        }
+        self.frequency = register_to_frequency(register);
+    }
+
+    fn set_timbre(&mut self, timbre: Timbre) -> bool {
+        // TODO: Add a sentinel value indicating "unset"
+        timbre.get() == 0
     }
 }
 
