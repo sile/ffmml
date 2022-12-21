@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::types::{DefaultNoteDuration, NoteDuration, Quantize, Tempo};
+use crate::types::{DefaultNoteDuration, NoteDuration, Quantize, QuantizeFrame, Tempo};
 use num::rational::Ratio;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -9,6 +9,10 @@ pub struct Clock(Ratio<u64>);
 impl Clock {
     pub fn tick(&mut self, numer: u64, denom: u64) {
         self.0 += Ratio::new(numer, denom);
+    }
+
+    fn reverse_tick(&mut self, numer: u64, denom: u64) {
+        self.0 -= Ratio::new(numer, denom);
     }
 
     pub fn now(self) -> Duration {
@@ -28,7 +32,7 @@ pub struct Clocks {
     quantize_clock: Clock,
     sample_rate: u16,
     tempo: Tempo,
-    quantize: Quantize,
+    quantize: QuantizeMode,
     default_note_duration: DefaultNoteDuration,
     tuplet: Option<Tuplet>,
     frame_index: usize,
@@ -43,7 +47,7 @@ impl Clocks {
             quantize_clock: Clock::default(),
             sample_rate,
             tempo: Tempo::default(),
-            quantize: Quantize::default(),
+            quantize: QuantizeMode::default(),
             default_note_duration: DefaultNoteDuration::default(),
             tuplet: None,
             frame_index: 0,
@@ -75,12 +79,12 @@ impl Clocks {
 
         if let Some(tuplet) = &mut self.tuplet {
             tuplet.remainings -= 1;
+            let is_last = tuplet.remainings == 0;
             let numer = *tuplet.duration.numer();
             let denom = *tuplet.duration.denom();
             self.note_clock.tick(numer, denom);
-            self.quantize_clock
-                .tick(numer * u64::from(self.quantize.get()), denom * 8);
-            if tuplet.remainings == 0 {
+            self.tick_quantize_clock(numer, denom);
+            if is_last {
                 self.tuplet = None;
             }
             return;
@@ -94,9 +98,24 @@ impl Clocks {
         let mut denom = u64::from(self.tempo.get()) * u64::from(duration);
         for _ in 0..=std::cmp::min(note_duration.dots(), 16) {
             self.note_clock.tick(numer, denom);
-            self.quantize_clock
-                .tick(numer * u64::from(self.quantize.get()), denom * 8);
+            self.tick_quantize_clock(numer, denom);
             denom *= 2;
+        }
+    }
+
+    fn tick_quantize_clock(&mut self, numer: u64, denom: u64) {
+        match self.quantize {
+            QuantizeMode::None => {
+                self.quantize_clock.tick(numer, denom);
+            }
+            QuantizeMode::Normal(q) => {
+                self.quantize_clock
+                    .tick(numer * u64::from(q.get()), denom * 8);
+            }
+            QuantizeMode::Frame(q) => {
+                self.quantize_clock.tick(numer, denom);
+                self.quantize_clock.reverse_tick(u64::from(q.get()), 60);
+            }
         }
     }
 
@@ -127,7 +146,11 @@ impl Clocks {
     }
 
     pub fn set_quantize(&mut self, quantize: Quantize) {
-        self.quantize = quantize;
+        self.quantize = QuantizeMode::Normal(quantize);
+    }
+
+    pub fn set_quantize_frame(&mut self, quantize_frame: QuantizeFrame) {
+        self.quantize = QuantizeMode::Frame(quantize_frame);
     }
 
     pub fn set_default_note_duration(&mut self, default: DefaultNoteDuration) {
@@ -153,4 +176,12 @@ impl Clocks {
 struct Tuplet {
     remainings: usize,
     duration: Ratio<u64>,
+}
+
+#[derive(Debug, Default)]
+enum QuantizeMode {
+    #[default]
+    None,
+    Normal(Quantize),
+    Frame(QuantizeFrame),
 }

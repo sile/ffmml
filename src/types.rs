@@ -529,6 +529,15 @@ impl Default for Quantize {
 }
 
 #[derive(Debug, Default, Clone, Copy, Span, Parse)]
+pub struct QuantizeFrame(U8);
+
+impl QuantizeFrame {
+    pub const fn get(self) -> u8 {
+        self.0.get()
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Span, Parse)]
 pub struct Detune(I8);
 
 impl Detune {

@@ -4,10 +4,10 @@ use crate::{
     commands::{
         ArpeggioCommand, Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand,
         NoteCommand, OctaveCommand, OctaveDownCommand, OctaveUpCommand, PitchEnvelopeCommand,
-        QuantizeCommand, RepeatEndCommand, RepeatStartCommand, RestSignCommand, SlurCommand,
-        TempoCommand, TieCommand, TimbreCommand, TimbresCommand, TrackLoopCommand,
-        TupletEndCommand, TupletStartCommand, VibratoCommand, VolumeCommand, VolumeDownCommand,
-        VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
+        QuantizeCommand, QuantizeFrameCommand, RepeatEndCommand, RepeatStartCommand,
+        RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TimbresCommand,
+        TrackLoopCommand, TupletEndCommand, TupletStartCommand, VibratoCommand, VolumeCommand,
+        VolumeDownCommand, VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
     },
     macros::Macros,
     oscillators::{Oscillator, PitchLfo},
@@ -566,6 +566,14 @@ impl ChannelPlayer {
         self.clocks.set_quantize(command.quantize());
         Ok(())
     }
+
+    fn handle_quantize_frame_command(
+        &mut self,
+        command: QuantizeFrameCommand,
+    ) -> Result<(), PlayMusicError> {
+        self.clocks.set_quantize_frame(command.quantize_frame());
+        Ok(())
+    }
 }
 
 impl Iterator for ChannelPlayer {
@@ -621,6 +629,7 @@ impl Iterator for ChannelPlayer {
                 Command::Tie(c) => self.handle_tie_command(c),
                 Command::Slur(c) => self.handle_slur_command(c),
                 Command::Quantize(c) => self.handle_quantize_command(c),
+                Command::QuantizeFrame(c) => self.handle_quantize_frame_command(c),
             };
             if let Err(e) = result {
                 self.last_error = Some(e);
