@@ -60,7 +60,7 @@ impl MusicPlayer {
         self.last_error.as_ref()
     }
 
-    pub fn position(&self) -> Duration {
+    pub fn current_position(&self) -> Duration {
         self.channels
             .values()
             .map(|c| c.clocks.sample_clock().now())

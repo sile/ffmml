@@ -9,6 +9,8 @@ edition = "2021"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
+byteorder = "1"
 ffmml = { path = "../", version = "0.1" }
+log = "0.4"
 pagurus = "0.5"
-pagurus_game_std = { version = "0.5", default-features = false }
+pagurus_game_std = { version = "0.5", default-features = false, features = ["wasm"] }
