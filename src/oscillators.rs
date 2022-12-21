@@ -279,7 +279,7 @@ impl TriangleWave {
 #[derive(Debug, Clone)]
 pub struct Noise {
     register: u16,
-    frequency: f32, // TODO: rename
+    frequency: f32,
     looped_noise: bool,
     residual: f32,
 }
@@ -288,7 +288,7 @@ impl Noise {
     fn new() -> Self {
         Self {
             register: 1,
-            frequency: 4.0, // TODO
+            frequency: 0.0, // dummy initial value
             looped_noise: false,
             residual: 0.0,
         }
