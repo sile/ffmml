@@ -95,7 +95,7 @@ impl PulseWave {
         }
     }
 
-    fn mute(&mut self, mute: bool) {}
+    fn mute(&mut self, _mute: bool) {}
 
     fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
         let mut o = i32::from(octave.get());
@@ -135,8 +135,9 @@ impl PulseWave {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MuteState {
-    Off { count: usize },
-    On { count: usize },
+    Off,
+    Switching,
+    On,
 }
 
 #[derive(Debug, Clone)]
@@ -144,6 +145,7 @@ pub struct TriangleWave {
     frequency: f32,
     phase: f32,
     mute: MuteState,
+    prev: Sample,
 }
 
 impl TriangleWave {
@@ -151,19 +153,16 @@ impl TriangleWave {
         Self {
             frequency: 0.0, // dummy initial value
             phase: 0.0,
-            mute: MuteState::Off { count: 0 },
+            mute: MuteState::Off,
+            prev: Sample::ZERO,
         }
     }
 
     fn mute(&mut self, mute: bool) {
-        match self.mute {
-            MuteState::Off { count } if mute => {
-                self.mute = MuteState::On { count };
-            }
-            MuteState::On { count } if !mute => {
-                self.mute = MuteState::Off { count };
-            }
-            _ => {}
+        if !mute {
+            self.mute = MuteState::Off;
+        } else if self.mute == MuteState::Off {
+            self.mute = MuteState::Switching;
         }
     }
 
@@ -204,6 +203,10 @@ impl TriangleWave {
         ];
         const N: f32 = WAVEFORM.len() as f32;
 
+        if self.mute == MuteState::On {
+            return Sample::ZERO;
+        }
+
         let frequency = if let Some(lfo) = lfo {
             let d = lfo.sample(sample_rate);
             register_to_frequency(frequency_to_register(self.frequency) - d)
@@ -211,24 +214,18 @@ impl TriangleWave {
             self.frequency
         };
 
-        const X: usize = 100;
-
         self.phase += frequency / f32::from(sample_rate);
         self.phase -= self.phase.floor();
         let i = (self.phase * N).floor() as usize;
         let s = Sample::new(WAVEFORM[i]);
-        match self.mute {
-            MuteState::On { count: 0 } => Sample::ZERO,
-            MuteState::Off { count: X } => s,
-            MuteState::On { count } => {
-                self.mute = MuteState::On { count: count - 1 };
-                s * (count as f32 / X as f32)
-            }
-            MuteState::Off { count } => {
-                self.mute = MuteState::Off { count: count + 1 };
-                s * (count as f32 / X as f32)
-            }
+        if self.mute == MuteState::Switching
+            && self.prev.get().is_sign_positive() != s.get().is_sign_positive()
+        {
+            self.mute = MuteState::On;
+            return Sample::ZERO;
         }
+        self.prev = s;
+        s
     }
 
     fn set_frequency(&mut self, note: Note, octave: Octave, detune: Detune) {
