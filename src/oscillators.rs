@@ -30,9 +30,9 @@ impl Oscillator {
         }
     }
 
-    pub fn frequency(&self) -> f32 {
+    pub fn sweep_frequency(&mut self, depth: i8) {
         match self {
-            Oscillator::PulseWave(o) => o.frequency,
+            Oscillator::PulseWave(o) => o.sweep_frequency(depth),
         }
     }
 
@@ -92,6 +92,16 @@ impl PulseWave {
             let d = f32::from(detune.get());
             self.frequency = register_to_frequency(frequency_to_register(self.frequency) - d);
         }
+    }
+
+    fn sweep_frequency(&mut self, depth: i8) {
+        let mut register = frequency_to_register(self.frequency);
+        if depth >= 0 {
+            register -= register / 2f32.powi(i32::from(depth));
+        } else {
+            register += register / 2f32.powi(i32::from(-depth));
+        }
+        self.frequency = register_to_frequency(register);
     }
 
     fn set_timbre(&mut self, timbre: Timbre) -> bool {

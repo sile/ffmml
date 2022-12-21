@@ -4,17 +4,17 @@ use crate::{
     commands::{
         ArpeggioCommand, Command, DataSkipCommand, DefaultNoteDurationCommand, DetuneCommand,
         NoteCommand, OctaveCommand, OctaveDownCommand, OctaveUpCommand, PitchEnvelopeCommand,
-        QuantizeCommand, QuantizeFrameCommand, RepeatEndCommand, RepeatStartCommand,
-        RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand, TimbresCommand,
-        TrackLoopCommand, TupletEndCommand, TupletStartCommand, VibratoCommand, VolumeCommand,
-        VolumeDownCommand, VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
+        PitchSweepCommand, QuantizeCommand, QuantizeFrameCommand, RepeatEndCommand,
+        RepeatStartCommand, RestSignCommand, SlurCommand, TempoCommand, TieCommand, TimbreCommand,
+        TimbresCommand, TrackLoopCommand, TupletEndCommand, TupletStartCommand, VibratoCommand,
+        VolumeCommand, VolumeDownCommand, VolumeEnvelopeCommand, VolumeUpCommand, WaitCommand,
     },
     macros::Macros,
     oscillators::{Oscillator, PitchLfo},
     traits::NthFrameItem,
     types::{
-        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, Sample, Timbre, Timbres, Volume,
-        VolumeEnvelope,
+        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, PitchSweep, Sample, Timbre, Timbres,
+        Volume, VolumeEnvelope,
     },
     Music,
 };
@@ -145,6 +145,7 @@ struct ChannelPlayer {
     repeat_stack: Vec<Repeat>,
     note: Option<Note>,
     pitch_lfo: Option<PitchLfo>,
+    pitch_sweep: Option<PitchSweep>,
     last_error: Option<PlayMusicError>,
 }
 
@@ -165,6 +166,7 @@ impl ChannelPlayer {
             repeat_stack: Vec::new(),
             note: None,
             pitch_lfo: None,
+            pitch_sweep: None,
             last_error: None,
         }
     }
@@ -217,7 +219,17 @@ impl ChannelPlayer {
                     .ok_or_else(|| PlayMusicError::new(note, "octave overflow"))?;
             };
         };
-        self.oscillator.set_frequency(note, octave, detune);
+
+        if let Some((Some(speed), Some(depth))) = self.pitch_sweep.map(|s| (s.speed(), s.depth())) {
+            if frame_index == 0 {
+                self.oscillator.set_frequency(note, octave, detune);
+            }
+            if frame_index % usize::from(speed) == 0 {
+                self.oscillator.sweep_frequency(depth);
+            }
+        } else {
+            self.oscillator.set_frequency(note, octave, detune);
+        }
         Ok(())
     }
 
@@ -403,6 +415,14 @@ impl ChannelPlayer {
         } else {
             self.detune = PitchEnvelope::constant(Detune::default());
         }
+        Ok(())
+    }
+
+    fn handle_pitch_sweep_command(
+        &mut self,
+        command: PitchSweepCommand,
+    ) -> Result<(), PlayMusicError> {
+        self.pitch_sweep = Some(command.sweep());
         Ok(())
     }
 
@@ -613,6 +633,7 @@ impl Iterator for ChannelPlayer {
                 Command::OctaveDown(c) => self.handle_octave_down_command(c),
                 Command::Detune(c) => self.handle_detune_command(c),
                 Command::PitchEnvelope(c) => self.handle_pitch_envelope_command(c),
+                Command::PitchSweep(c) => self.handle_pitch_sweep_command(c),
                 Command::Vibrato(c) => self.handle_vibrato_command(c),
                 Command::Timbre(c) => self.handle_timbre_command(c),
                 Command::Timbres(c) => self.handle_timbres_command(c),

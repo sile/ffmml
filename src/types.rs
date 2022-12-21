@@ -456,6 +456,9 @@ impl Parse for Digit {
 pub struct Octave(U8);
 
 impl Octave {
+    pub const MIN: Self = Self(U8::new(2));
+    pub const MAX: Self = Self(U8::new(7));
+
     pub const fn get(self) -> u8 {
         self.0.get()
     }
@@ -786,5 +789,36 @@ impl Vibrato {
 
     pub fn depth(&self) -> u8 {
         self.depth.get()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Span, Parse)]
+pub struct PitchSweep {
+    speed: U4,
+    _space0: CommentsOrWhitespaces,
+    _comma: Char<','>,
+    _space1: CommentsOrWhitespaces,
+    depth: U4,
+}
+
+impl PitchSweep {
+    pub fn speed(self) -> Option<u8> {
+        let v = self.speed.get();
+        if v < 8 {
+            None
+        } else {
+            Some(v - 7)
+        }
+    }
+
+    pub fn depth(self) -> Option<i8> {
+        let v = self.depth.get();
+        if 8 < v {
+            Some(v as i8 - 8)
+        } else if 0 < v && v < 8 {
+            Some(-(v as i8))
+        } else {
+            None
+        }
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     macros::MacroNumber,
     types::{
         DefaultNoteDuration, Detune, Digit, NonZeroU4, NonZeroU8, Note, NoteDuration, Octave,
-        Quantize, QuantizeFrame, Tempo, Timbre, Volume,
+        PitchSweep, Quantize, QuantizeFrame, Tempo, Timbre, Volume,
     },
 };
 use textparse::{
@@ -24,6 +24,7 @@ pub enum Command {
     OctaveDown(OctaveDownCommand),
     Detune(DetuneCommand),
     PitchEnvelope(PitchEnvelopeCommand),
+    PitchSweep(PitchSweepCommand),
     Vibrato(VibratoCommand),
     Timbre(TimbreCommand),
     Timbres(TimbresCommand),
@@ -205,6 +206,18 @@ impl PitchEnvelopeCommand {
         } else {
             None
         }
+    }
+}
+
+#[derive(Debug, Clone, Span, Parse)]
+pub struct PitchSweepCommand {
+    _prefix: Char<'s'>,
+    sweep: PitchSweep,
+}
+
+impl PitchSweepCommand {
+    pub fn sweep(&self) -> PitchSweep {
+        self.sweep
     }
 }
 
