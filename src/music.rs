@@ -117,6 +117,13 @@ pub struct ParseMusicError {
     filename: Option<String>,
 }
 
+impl ParseMusicError {
+    pub fn filename(mut self, filename: &str) -> Self {
+        self.filename = Some(filename.to_owned());
+        self
+    }
+}
+
 impl std::fmt::Display for ParseMusicError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let message = self
