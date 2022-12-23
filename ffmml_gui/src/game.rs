@@ -16,6 +16,7 @@ pagurus_game_std::export_wasm_functions!(FfmmlGame);
 #[derive(Debug, Default)]
 pub struct FfmmlGame {
     player: Option<MusicPlayer>,
+    start_time: Duration,
     timeout: Option<ActionId>,
 }
 
@@ -25,7 +26,7 @@ impl FfmmlGame {
         if let Some(player) = &mut self.player {
             let now = player.current_position();
             let mut data = Vec::new();
-            let frame_size = Duration::from_millis(50);
+            let frame_size = Duration::from_millis(20);
             while player.current_position() - now < frame_size {
                 let Some(sample) = player.next() else {
                     eos = true;
@@ -36,14 +37,14 @@ impl FfmmlGame {
                     .or_fail()?;
             }
             let size = system.audio_enqueue(AudioData::new(&data).or_fail()?);
-            log::info!("{} <=> {}", size, data.len() / 2);
             (size == data.len() / 2).or_fail()?;
             if !eos {
                 if self.timeout.is_none() {
-                    self.timeout = Some(system.clock_set_timeout(Duration::from_millis(10)));
-                } else {
-                    self.timeout = Some(system.clock_set_timeout(frame_size));
+                    self.start_time = system.clock_game_time();
                 }
+                let elapsed = system.clock_game_time() - self.start_time;
+                let wait = player.current_position().saturating_sub(elapsed);
+                self.timeout = Some(system.clock_set_timeout(wait));
             }
         }
         if eos {
