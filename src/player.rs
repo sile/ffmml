@@ -28,6 +28,7 @@ pub struct MusicPlayer {
 }
 
 impl MusicPlayer {
+    // TODO: volume arg
     pub(crate) fn new(music: Music, sample_rate: u16) -> Self {
         let macros = music.macros();
         let channels = music
@@ -61,11 +62,16 @@ impl MusicPlayer {
     }
 
     pub fn current_position(&self) -> Duration {
-        self.channels
-            .values()
-            .map(|c| c.clocks.sample_clock().now())
-            .max()
-            .unwrap_or_default()
+        for c in self.channels.values() {
+            if !c.is_eos() {
+                return c.clocks.sample_clock().now();
+            }
+        }
+        Duration::from_secs(0)
+    }
+
+    pub fn is_eos(&self) -> bool {
+        self.channels.values().all(|c| c.is_eos())
     }
 
     // TODO: seek
@@ -147,6 +153,7 @@ struct ChannelPlayer {
     pitch_lfo: Option<PitchLfo>,
     pitch_sweep: Option<PitchSweep>,
     last_error: Option<PlayMusicError>,
+    eos: bool,
 }
 
 impl ChannelPlayer {
@@ -168,7 +175,12 @@ impl ChannelPlayer {
             pitch_lfo: None,
             pitch_sweep: None,
             last_error: None,
+            eos: false,
         }
+    }
+
+    fn is_eos(&self) -> bool {
+        return self.eos;
     }
 
     fn sample(&mut self) -> Sample {
@@ -597,10 +609,15 @@ impl Iterator for ChannelPlayer {
     type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.eos {
+            return None;
+        }
+
         while self.last_error.is_none() {
             if self.clocks.tick_frame_clock_if_need() {
                 self.last_error = self.handle_frame().err();
                 if self.last_error.is_some() {
+                    self.eos = true;
                     return None;
                 }
             }
@@ -614,6 +631,7 @@ impl Iterator for ChannelPlayer {
                     self.command_index = i;
                     continue;
                 }
+                self.eos = true;
                 return None;
             };
             self.command_index += 1;

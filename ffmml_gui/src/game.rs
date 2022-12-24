@@ -1,65 +1,57 @@
-use byteorder::{BigEndian, WriteBytesExt};
 use ffmml::MusicPlayer;
 use pagurus::{
     audio::AudioData,
     event::Event,
     failure::{Failure, OrFail},
-    ActionId, Game, Result, System,
+    timeout::TimeoutTag,
+    Game, Result, System,
 };
-use pagurus_game_std::logger::Logger;
 use std::{str::FromStr, time::Duration};
 
 const MML: &str = include_str!("../../examples/music01.mml");
 
-pagurus_game_std::export_wasm_functions!(FfmmlGame);
+pagurus::export_wasm_functions!(FfmmlGame);
 
 #[derive(Debug, Default)]
 pub struct FfmmlGame {
+    audio_data: AudioData,
     player: Option<MusicPlayer>,
     start_time: Duration,
-    timeout: Option<ActionId>,
 }
 
 impl FfmmlGame {
     fn play_audio_frame<S: System>(&mut self, system: &mut S) -> Result<()> {
-        let mut eos = false;
         if let Some(player) = &mut self.player {
-            let now = player.current_position();
-            let mut data = Vec::new();
-            let frame_size = Duration::from_millis(20);
-            while player.current_position() - now < frame_size {
-                let Some(sample) = player.next() else {
-                    eos = true;
-                    break;
-                };
-                (&mut data)
-                    .write_i16::<BigEndian>(sample.to_i16())
-                    .or_fail()?;
+            for i in 0..self.audio_data.samples().len() {
+                self.audio_data
+                    .write_sample(i, player.next().map_or(0.0, |s| s.get()));
             }
-            let size = system.audio_enqueue(AudioData::new(&data).or_fail()?);
-            (size == data.len() / 2).or_fail()?;
-            if !eos {
-                if self.timeout.is_none() {
+            system.audio_enqueue(self.audio_data.as_ref());
+            if !player.is_eos() {
+                if self.start_time == Duration::default() {
                     self.start_time = system.clock_game_time();
                 }
                 let elapsed = system.clock_game_time() - self.start_time;
                 let wait = player.current_position().saturating_sub(elapsed);
-                self.timeout = Some(system.clock_set_timeout(wait));
+                system.clock_set_timeout(TimeoutTag::new(0), wait);
             }
         }
-        if eos {
+        if self.player.as_ref().map_or(false, |p| p.is_eos()) {
             self.player = None;
         }
         Ok(())
     }
 }
 
+const SAMPLE_RATE: u16 = 48000;
+const DATA_SAMPLES: usize = 960; // 20 ms
+
 impl<S: System + 'static> Game<S> for FfmmlGame {
-    fn initialize(&mut self, _system: &mut S) -> Result<()> {
-        Logger::<S>::init(log::Level::Debug).or_fail()?;
+    fn initialize(&mut self, system: &mut S) -> Result<()> {
         let music =
             ffmml::Music::from_str(MML).map_err(|e| Failure::new().message(e.to_string()))?;
-        self.player = Some(music.play(AudioData::SAMPLE_RATE as u16));
+        self.player = Some(music.play(SAMPLE_RATE));
+        self.audio_data = AudioData::new(system.audio_init(SAMPLE_RATE, DATA_SAMPLES));
 
         log::info!("initialized");
         Ok(())

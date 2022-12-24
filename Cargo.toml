@@ -18,4 +18,3 @@ members = [
 [patch.crates-io]
 textparse = { path = "../textparse/" }
 pagurus = { path = "../pagurus/" }
-pagurus_game_std = { path = "../pagurus/pagurus_game_std/" }
