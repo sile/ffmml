@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use textparse::{
-    components::{Char, Either, Not, StartsWith, StaticStr},
+    components::{Char, Either, Not, Str},
     Parse, Span,
 };
 
@@ -181,7 +181,7 @@ pub struct OctaveDownCommand {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct DetuneCommand {
     _prefix: Char<'D'>,
-    detune: Either<StartsWith<N255>, Detune>,
+    detune: Either<N255, Detune>,
 }
 
 impl DetuneCommand {
@@ -237,25 +237,11 @@ impl VibratoCommand {
     }
 }
 
-#[derive(Debug)]
-struct N255;
+type N255 = Str<'2', '5', '5'>;
 
-impl StaticStr for N255 {
-    fn static_str() -> &'static str {
-        "255"
-    }
-}
+type Of = Str<'O', 'F'>;
 
-#[derive(Debug)]
-struct Of;
-
-impl StaticStr for Of {
-    fn static_str() -> &'static str {
-        "OF"
-    }
-}
-
-type Off = Either<StartsWith<N255>, StartsWith<Of>>;
+type Off = Either<N255, Of>;
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct TimbreCommand {

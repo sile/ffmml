@@ -11,4 +11,4 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 ffmml = { path = "../", version = "0.1" }
 log = "0.4"
-pagurus = { version = "0.5", features = ["wasm"] }
+pagurus = { version = "0.6", features = ["wasm"] }

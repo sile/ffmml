@@ -1,5 +1,5 @@
 use textparse::{
-    components::{AnyChar, Char, Either, Not, Until, While, Whitespace},
+    components::{AnyChar, Char, Either, Not, While, Whitespace},
     Parse, Span,
 };
 
@@ -22,5 +22,5 @@ pub struct BlockComment(
 #[derive(Debug, Clone, Span, Parse)]
 pub struct LineComment(
     Either<Char<';', false>, Char<'/', false>>,
-    Until<Char<'\n'>>,
+    While<(Not<Char<'\n'>>, AnyChar)>,
 );

@@ -5,7 +5,7 @@ use crate::{
 };
 use std::marker::PhantomData;
 use textparse::{
-    components::{Char, NonEmpty, OneOfThree, StartsWith, StaticStr, While},
+    components::{Char, NonEmpty, OneOfThree, Str, While},
     Parse, ParseError, ParseResult, Parser, Position, Span,
 };
 
@@ -19,7 +19,7 @@ pub enum Definition {
 
 #[derive(Debug, Clone, Span, Parse)]
 #[parse(name = "#TITLE")]
-pub struct Title(DefineString<StartsWith<TitleStr>>);
+pub struct Title(DefineString<Str<'T', 'I', 'T', 'L', 'E'>>);
 
 impl Title {
     pub fn get(&self) -> &str {
@@ -27,18 +27,9 @@ impl Title {
     }
 }
 
-#[derive(Debug, Clone)]
-struct TitleStr;
-
-impl StaticStr for TitleStr {
-    fn static_str() -> &'static str {
-        "TITLE"
-    }
-}
-
 #[derive(Debug, Clone, Span, Parse)]
 #[parse(name = "#COMPOSER")]
-pub struct Composer(DefineString<StartsWith<ComposerStr>>);
+pub struct Composer(DefineString<Str<'C', 'O', 'M', 'P', 'O', 'S', 'E', 'R'>>);
 
 impl Composer {
     pub fn get(&self) -> &str {
@@ -46,31 +37,13 @@ impl Composer {
     }
 }
 
-#[derive(Debug, Clone)]
-struct ComposerStr;
-
-impl StaticStr for ComposerStr {
-    fn static_str() -> &'static str {
-        "COMPOSER"
-    }
-}
-
 #[derive(Debug, Clone, Span, Parse)]
 #[parse(name = "#PROGRAMER")]
-pub struct Programer(DefineString<StartsWith<ProgramerStr>>);
+pub struct Programer(DefineString<Str<'P', 'R', 'O', 'G', 'R', 'A', 'M', 'E', 'R'>>);
 
 impl Programer {
     pub fn get(&self) -> &str {
         &self.0.value
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ProgramerStr;
-
-impl StaticStr for ProgramerStr {
-    fn static_str() -> &'static str {
-        "PROGRAMER"
     }
 }
 
@@ -95,8 +68,7 @@ impl Channel {
 impl Parse for Channel {
     fn parse(parser: &mut Parser) -> ParseResult<Self> {
         let start = parser.current_position();
-        let _: Char<'#'> = parser.parse()?;
-        let _: StartsWith<ChannelStr> = parser.parse()?;
+        let _: Str<'#', 'C', 'A', 'N', 'N', 'E', 'L'> = parser.parse()?;
         let _: NonEmpty<While<SpaceOrTabOrComment>> = parser.parse()?;
         let channel_names = parser.parse()?;
         let _: NonEmpty<While<SpaceOrTabOrComment>> = parser.parse()?;
@@ -113,15 +85,6 @@ impl Parse for Channel {
 
     fn name() -> Option<fn() -> String> {
         Some(|| "#CHANNEL".to_owned())
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ChannelStr;
-
-impl StaticStr for ChannelStr {
-    fn static_str() -> &'static str {
-        "CHANNEL"
     }
 }
 
