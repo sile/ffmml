@@ -96,8 +96,8 @@ fn main() {
         // Generate audio data.
         let mut player = music.play(args.sample_rate);
         let audio_data = (&mut player).map(|x| x.to_i16()).collect::<Vec<_>>();
-        if let Some(e) = player.last_error() {
-            return Err(e.to_string(&mml, Some(&args.input_file_path().to_string_lossy())));
+        if let Some(e) = player.take_last_error() {
+            return Err(e.text(&mml).file_path(args.input_file_path()).to_string());
         }
 
         // Write output.
