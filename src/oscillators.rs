@@ -278,9 +278,8 @@ impl TriangleWave {
         self.frequency = register_to_frequency(register);
     }
 
-    fn set_timbre(&mut self, timbre: Timbre) -> bool {
-        // TODO: Add a sentinel value indicating "unset"
-        timbre.get() == 0
+    fn set_timbre(&mut self, _timbre: Timbre) -> bool {
+        false
     }
 }
 

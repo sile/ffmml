@@ -13,8 +13,8 @@ use crate::{
     oscillators::{Oscillator, PitchLfo},
     traits::NthFrameItem,
     types::{
-        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, PitchSweep, Sample, Timbre, Timbres,
-        Volume, VolumeEnvelope,
+        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, PitchSweep, Sample, Timbres, Volume,
+        VolumeEnvelope,
     },
     Music,
 };
@@ -73,8 +73,6 @@ impl MusicPlayer {
     pub fn is_eos(&self) -> bool {
         self.channels.values().all(|c| c.is_eos())
     }
-
-    // TODO: seek
 }
 
 impl Iterator for MusicPlayer {
@@ -144,7 +142,7 @@ struct ChannelPlayer {
     octave: Octave,
     detune: PitchEnvelope,
     volume: VolumeEnvelope,
-    timbre: Timbres,
+    timbre: Option<Timbres>,
     clocks: Clocks,
     arpeggio: Option<NoteEnvelope>,
     loop_point: Option<usize>,
@@ -166,7 +164,7 @@ impl ChannelPlayer {
             octave: Octave::default(),
             detune: PitchEnvelope::constant(Detune::default()),
             volume: VolumeEnvelope::constant(Volume::default()),
-            timbre: Timbres::constant(Timbre::default()),
+            timbre: None,
             clocks: Clocks::new(sample_rate),
             loop_point: None,
             arpeggio: None,
@@ -196,9 +194,14 @@ impl ChannelPlayer {
     }
 
     fn handle_frame(&mut self) -> Result<(), PlayMusicError> {
-        let timbre = self.timbre.nth_frame_item(self.clocks.frame_index());
-        if !self.oscillator.set_timbre(timbre) {
-            return Err(PlayMusicError::new(timbre, "unsupported timbre value"));
+        if let Some(timbre) = self
+            .timbre
+            .as_ref()
+            .map(|t| t.nth_frame_item(self.clocks.frame_index()))
+        {
+            if !self.oscillator.set_timbre(timbre) {
+                return Err(PlayMusicError::new(timbre, "unsupported timbre value"));
+            }
         }
         self.update_frequency()?;
         Ok(())
@@ -455,22 +458,19 @@ impl ChannelPlayer {
     }
 
     fn handle_timbre_command(&mut self, command: TimbreCommand) -> Result<(), PlayMusicError> {
-        if self.oscillator.set_timbre(command.timbre()) {
-            self.timbre = Timbres::constant(command.timbre());
-            Ok(())
-        } else {
-            Err(PlayMusicError::new(command, "unsupported timbre value"))
-        }
+        self.timbre = Some(Timbres::constant(command.timbre()));
+        Ok(())
     }
 
     fn handle_timbres_command(&mut self, command: TimbresCommand) -> Result<(), PlayMusicError> {
-        self.timbre = self
-            .macros
-            .timbres
-            .get(&command.macro_number())
-            .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
-            .timbres()
-            .clone();
+        self.timbre = Some(
+            self.macros
+                .timbres
+                .get(&command.macro_number())
+                .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
+                .timbres()
+                .clone(),
+        );
         Ok(())
     }
 
