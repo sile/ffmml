@@ -41,7 +41,7 @@ impl Args {
         Ok(mml)
     }
 
-    fn input_filename(&self) -> PathBuf {
+    fn input_file_path(&self) -> PathBuf {
         if self.input_file == Path::new("-") {
             PathBuf::from("<STDIN>")
         } else {
@@ -50,7 +50,7 @@ impl Args {
     }
 
     fn create_output_writer(&self) -> Result<Box<dyn 'static + std::io::Write>, String> {
-        let path = self.output_filename();
+        let path = self.output_file_path();
         if path == Path::new("<STDOUT>") {
             Ok(Box::new(std::io::BufWriter::new(std::io::stdout())))
         } else {
@@ -64,7 +64,7 @@ impl Args {
         }
     }
 
-    fn output_filename(&self) -> PathBuf {
+    fn output_file_path(&self) -> PathBuf {
         if let Some(path) = &self.output_file {
             if path == Path::new("-") {
                 PathBuf::from("<STDOUT>")
@@ -91,13 +91,13 @@ fn main() {
         // Parse text.
         let music: ffmml::Music = mml
             .parse::<ffmml::Music>()
-            .map_err(|e| e.file_path(&args.input_filename()).to_string())?;
+            .map_err(|e| e.file_path(args.input_file_path()).to_string())?;
 
         // Generate audio data.
         let mut player = music.play(args.sample_rate);
         let audio_data = (&mut player).map(|x| x.to_i16()).collect::<Vec<_>>();
         if let Some(e) = player.last_error() {
-            return Err(e.to_string(&mml, Some(&args.input_filename().to_string_lossy())));
+            return Err(e.to_string(&mml, Some(&args.input_file_path().to_string_lossy())));
         }
 
         // Write output.
@@ -106,7 +106,7 @@ fn main() {
             .map_err(|e| {
                 format!(
                     "failed to write WAVE file to {} ({e})",
-                    args.output_filename().to_string_lossy()
+                    args.output_file_path().to_string_lossy()
                 )
             })?;
 

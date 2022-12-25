@@ -14,6 +14,7 @@ use std::{
 };
 use textparse::{ParseError, Parser, Position, Span};
 
+/// TODO: A music instance built from a MML script.
 #[derive(Debug, Clone)]
 pub struct Music {
     title: Option<Title>,
@@ -76,6 +77,7 @@ impl Music {
         }))
     }
 
+    /// Music title defined by `#TITLE <VALUE>` in the script.
     pub fn title(&self) -> Option<&str> {
         self.title.as_ref().map(|x| x.get())
     }
