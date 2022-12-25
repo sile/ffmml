@@ -28,7 +28,6 @@ pub struct MusicPlayer {
 }
 
 impl MusicPlayer {
-    // TODO: volume arg
     pub(crate) fn new(music: Music, sample_rate: u16) -> Self {
         let macros = music.macros();
         let channels = music
@@ -179,7 +178,7 @@ impl ChannelPlayer {
     }
 
     fn is_eos(&self) -> bool {
-        return self.eos;
+        self.eos
     }
 
     fn sample(&mut self) -> Sample {
@@ -187,7 +186,7 @@ impl ChannelPlayer {
         let sample = self
             .oscillator
             .sample(self.clocks.sample_rate(), self.pitch_lfo.as_mut());
-        if !(self.clocks.sample_clock() < self.clocks.quantize_clock()) {
+        if self.clocks.sample_clock() >= self.clocks.quantize_clock() {
             self.oscillator.mute(true);
         }
         let volume = self.volume.nth_frame_item(self.clocks.frame_index());
@@ -222,7 +221,7 @@ impl ChannelPlayer {
             note = result.0;
             if result.1 < 0 {
                 octave = octave
-                    .checked_sub(result.1.abs() as u8)
+                    .checked_sub(result.1.unsigned_abs())
                     .ok_or_else(|| PlayMusicError::new(note, "octave underflow"))?;
             } else {
                 octave = octave

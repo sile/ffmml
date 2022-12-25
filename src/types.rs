@@ -19,7 +19,7 @@ impl Sample {
     }
 
     pub fn get(self) -> f32 {
-        self.0.max(Self::MIN.0).min(Self::MAX.0)
+        self.0.clamp(Self::MIN.0, Self::MAX.0)
     }
 
     pub fn to_i16(self) -> i16 {
@@ -134,10 +134,6 @@ pub struct Note {
 impl Note {
     pub const fn letter(self) -> Letter {
         self.letter
-    }
-
-    pub const fn accidentals(self) -> i8 {
-        self.accidentals
     }
 
     pub fn apply_note_number_delta(mut self, delta: i8) -> (Self, i8) {
@@ -334,9 +330,6 @@ impl<const MIN: i32, const MAX: i32> Parse for Int<MIN, MAX> {
 pub struct Octave(Int<2, 7>);
 
 impl Octave {
-    pub const MIN: Self = Self(Int::new(2));
-    pub const MAX: Self = Self(Int::new(7));
-
     pub const fn get(self) -> u8 {
         self.0.get() as u8
     }
@@ -506,7 +499,7 @@ impl<T: Copy> NthFrameItem for LoopList<T> {
         if let Some(item) = self.items.get(frame_index).copied() {
             item
         } else {
-            let loop_point = self.loop_point.unwrap_or_else(|| self.items.len() - 1);
+            let loop_point = self.loop_point.unwrap_or(self.items.len() - 1);
             let i = frame_index - self.items.len();
             let i = (i % (self.items.len() - loop_point)) + loop_point;
             self.items[i]

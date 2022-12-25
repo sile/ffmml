@@ -58,7 +58,6 @@ impl Music {
             }
         }
 
-        // TODOO: macro / definition order fix
         let _: CommentsOrWhitespaces = parser.parse()?;
         let mut macros = Macros::default();
         macros.parse(parser)?;
@@ -89,15 +88,11 @@ impl Music {
         self.programer.as_ref().map(|x| x.get())
     }
 
-    pub fn macros(&self) -> Arc<Macros> {
+    pub(crate) fn macros(&self) -> Arc<Macros> {
         self.macros.clone()
     }
 
-    pub fn channels(&self) -> &Channels {
-        &self.channels
-    }
-
-    pub fn into_channels(self) -> Channels {
+    pub(crate) fn into_channels(self) -> Channels {
         self.channels
     }
 
@@ -123,7 +118,7 @@ impl std::str::FromStr for Music {
 }
 
 pub struct ParseMusicError {
-    textparse_error: Option<ParseError>,
+    textparse_error: Option<Box<ParseError>>,
     text: String,
     position: Position,
     reason: String,
@@ -143,7 +138,7 @@ impl ParseMusicError {
 
     pub fn file_path<P: AsRef<Path>>(mut self, file_path: P) -> Self {
         if let Some(e) = self.textparse_error.take() {
-            self.textparse_error = Some(e.file_path(file_path));
+            self.textparse_error = Some(Box::new(e.file_path(file_path)));
         } else {
             self.file_path = Some(file_path.as_ref().to_path_buf());
         }
@@ -195,7 +190,7 @@ impl Error for ParseMusicError {}
 impl From<ParseError> for ParseMusicError {
     fn from(value: ParseError) -> Self {
         Self {
-            textparse_error: Some(value),
+            textparse_error: Some(Box::new(value)),
             text: String::new(),
             position: Position::new(0),
             reason: String::new(),

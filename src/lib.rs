@@ -1,15 +1,14 @@
-pub mod channel;
-pub mod commands;
-pub mod macros;
-pub mod oscillators;
-pub mod traits;
-pub mod types;
-
+mod channel;
 mod clocks;
+mod commands;
 mod comment;
 mod definitions;
+mod macros;
 mod music;
+mod oscillators;
 mod player;
+mod traits;
+mod types;
 
 pub use self::music::{Music, ParseMusicError};
 pub use self::player::{MusicPlayer, PlayMusicError};

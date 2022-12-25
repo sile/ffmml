@@ -89,22 +89,16 @@ fn main() {
         let mml = args.read_input_file()?;
 
         // Parse text.
-        let now = std::time::Instant::now();
         let music: ffmml::Music = mml
             .parse::<ffmml::Music>()
             .map_err(|e| e.file_path(&args.input_filename()).to_string())?;
-        eprintln!("[parse] elapsed: {:?}", now.elapsed());
-        // TODO: show music information
 
         // Generate audio data.
-        let now = std::time::Instant::now();
         let mut player = music.play(args.sample_rate);
         let audio_data = (&mut player).map(|x| x.to_i16()).collect::<Vec<_>>();
         if let Some(e) = player.last_error() {
             return Err(e.to_string(&mml, Some(&args.input_filename().to_string_lossy())));
         }
-        eprintln!("[play] elapsed: {:?}", now.elapsed());
-        eprintln!("samples: {}", audio_data.len());
 
         // Write output.
         Wav::new(u32::from(args.sample_rate), audio_data)
