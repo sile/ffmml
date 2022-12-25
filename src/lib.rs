@@ -11,7 +11,7 @@
 //!   - `y` command (direct memory entry)
 //!   - DPCM channel
 //! - FFMML features `#CHANNEL <CHANNEL_NAME> <OSCILLATOR>` directive that defines custom channels:
-//!   - `<CHANNEL_NAME>`: `A..Z`
+//!   - `<CHANNEL_NAME>`: `A..=Z`
 //!   - `<OSCILLATOR>`: `1` (pulse wave), `2` (triangle wave), or `3` (noise)
 //!
 //! [MCK]: https://www.nesdev.org/mckc-e.txt
@@ -65,6 +65,7 @@
 //! ### Abount Famicon sound
 //!
 //! - [NES APU (audio processing unit)](https://www.nesdev.org/wiki/APU)
+//! - [FC sound source (Japanese)](https://dic.nicovideo.jp/t/a/fc%E9%9F%B3%E6%BA%90)
 //! - [MCK Wiki (Japanese)](https://wikiwiki.jp/mck/%E3%83%95%E3%82%A1%E3%83%9F%E3%82%B3%E3%83%B3%E9%9F%B3%E6%BA%90%E8%A9%B3%E7%B4%B0)
 #![warn(missing_docs)]
 
