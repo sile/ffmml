@@ -6,7 +6,7 @@ use textparse::{
 
 use crate::{comment::CommentsOrWhitespaces, traits::NthFrameItem};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct Sample(f32);
 
 impl Sample {
