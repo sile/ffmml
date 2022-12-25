@@ -127,7 +127,7 @@ impl std::str::FromStr for Music {
     }
 }
 
-/// An error returned if it failed to parse an MML script.
+/// An error returned from [`Music::new()`].
 pub struct ParseMusicError {
     textparse_error: Option<Box<ParseError>>,
     text: String,
@@ -147,7 +147,7 @@ impl ParseMusicError {
         }
     }
 
-    /// Sets the file path of the parse target text.
+    /// Sets the file path of the target MML script.
     ///
     /// The default value is `<UNKNOWN>`.
     pub fn file_path<P: AsRef<Path>>(mut self, file_path: P) -> Self {

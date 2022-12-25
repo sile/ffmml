@@ -18,9 +18,17 @@ use crate::{
     },
     Music,
 };
-use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use std::{
+    borrow::Cow,
+    collections::BTreeMap,
+    error::Error,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 use textparse::{Position, Span};
 
+/// [`MusicPlayer`] is an iterator that generates audio samples.
 #[derive(Debug)]
 pub struct MusicPlayer {
     channels: BTreeMap<ChannelName, ChannelPlayer>,
@@ -46,7 +54,7 @@ impl MusicPlayer {
         }
     }
 
-    fn take_last_error(&mut self) -> Option<PlayMusicError> {
+    pub fn take_last_error(&mut self) -> Option<PlayMusicError> {
         for (name, channel) in &mut self.channels {
             if let Some(mut e) = channel.last_error.take() {
                 e.channel = *name;
@@ -54,10 +62,6 @@ impl MusicPlayer {
             }
         }
         None
-    }
-
-    pub fn last_error(&self) -> Option<&PlayMusicError> {
-        self.last_error.as_ref()
     }
 
     pub fn current_position(&self) -> Duration {
@@ -97,41 +101,80 @@ impl Iterator for MusicPlayer {
     }
 }
 
-#[derive(Debug, Clone)]
+/// An error returned from [`MusicPlayer::take_last_error()`].
 pub struct PlayMusicError {
-    pub channel: ChannelName,
-    pub span: std::ops::Range<Position>,
-    pub reason: String,
+    channel: ChannelName,
+    position: Position,
+    reason: String,
+    text: Option<String>,
+    file_path: Option<PathBuf>,
 }
 
 impl PlayMusicError {
     fn new(span: impl Span, reason: &str) -> Self {
         Self {
             channel: ChannelName::A, // dummy initial value.
-            span: span.start_position()..span.end_position(),
+            position: span.start_position(),
             reason: reason.to_string(),
+            text: None,
+            file_path: None,
         }
     }
 
-    pub fn to_string(&self, text: &str, filename: Option<&str>) -> String {
-        let offset = self.span.start_position().get();
-        let (line, column) = self.span.start_position().line_and_column(text);
-        let mut s = format!("{} on channel {:?}\n", self.reason, self.channel);
-        s += &format!("  --> {}:{line}:{column}\n", filename.unwrap_or("<SCRIPT>"));
+    /// Sets the content of the target MML script.
+    pub fn text(mut self, text: &str) -> Self {
+        self.text = Some(text.to_owned());
+        self
+    }
 
-        let line_len = format!("{line}").len();
-        s += &format!("{:line_len$} |\n", ' ');
-        s += &format!(
-            "{line} | {}\n",
-            text[offset + 1 - column..]
-                .lines()
-                .next()
-                .expect("unreachable")
-        );
-        s += &format!("{:line_len$} | {:>column$} {}\n", ' ', '^', self.reason);
-        s
+    /// Sets the file path of the target MML script.
+    ///
+    /// The default value is `<UNKNOWN>`.
+    pub fn file_path<P: AsRef<Path>>(mut self, file_path: P) -> Self {
+        self.file_path = Some(file_path.as_ref().to_path_buf());
+        self
     }
 }
+
+impl std::fmt::Debug for PlayMusicError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl std::fmt::Display for PlayMusicError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} on channel {:?}", self.reason, self.channel)?;
+
+        let Some(text) = self.text.as_ref() else {
+            return Ok(());
+        };
+        writeln!(f)?;
+
+        let offset = self.position.get();
+        let (line, column) = self.position.line_and_column(text);
+        writeln!(
+            f,
+            "  --> {}:{line}:{column}",
+            self.file_path
+                .as_ref()
+                .map(|s| s.to_string_lossy())
+                .unwrap_or(Cow::Borrowed("<UNKNOWN>"))
+        )?;
+
+        let line_len = format!("{line}").len();
+        writeln!(f, "{:line_len$} |", ' ')?;
+        writeln!(
+            f,
+            "{line} | {}",
+            text[offset + 1 - column..].lines().next().unwrap_or("")
+        )?;
+        writeln!(f, "{:line_len$} | {:>column$} {}", ' ', '^', self.reason)?;
+        Ok(())
+    }
+}
+
+impl Error for PlayMusicError {}
 
 #[derive(Debug)]
 struct ChannelPlayer {
