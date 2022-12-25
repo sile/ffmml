@@ -1,8 +1,8 @@
 use clap::Parser;
-use ffmmlc::wav::Wav;
 use std::{
     io::Read,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 /// FFMML compiler.
@@ -20,6 +20,10 @@ struct Args {
     /// Sample rate.
     #[clap(long, default_value_t = 48000)]
     sample_rate: u16,
+
+    /// Max duration (seconds).
+    #[clap(long, default_value_t = 60)]
+    duration: u16,
 }
 
 impl Args {
@@ -99,21 +103,22 @@ fn main() {
             .map_err(|e| e.file_path(args.input_file_path()).to_string())?;
 
         // Generate audio data.
-        let mut player = music.play(args.sample_rate);
-        let audio_data = (&mut player).map(|x| x.to_i16()).collect::<Vec<_>>();
-        if let Some(e) = player.take_last_error() {
-            return Err(e.text(&mml).file_path(args.input_file_path()).to_string());
-        }
+        let wav = ffmml::wav::Wav::with_options(
+            &music,
+            ffmml::wav::WavOptions {
+                sample_rate: args.sample_rate,
+                max_duration: Duration::from_secs(u64::from(args.duration)),
+            },
+        )
+        .map_err(|e| e.text(&mml).file_path(args.input_file_path()).to_string())?;
 
         // Write output.
-        Wav::new(u32::from(args.sample_rate), audio_data)
-            .to_writer(args.create_output_writer()?)
-            .map_err(|e| {
-                format!(
-                    "failed to write WAV file to {} ({e})",
-                    args.output_file_path().to_string_lossy()
-                )
-            })?;
+        wav.to_writer(args.create_output_writer()?).map_err(|e| {
+            format!(
+                "failed to write WAV file to {} ({e})",
+                args.output_file_path().to_string_lossy()
+            )
+        })?;
 
         Ok(())
     })();

@@ -14,4 +14,4 @@ readme = "README.md"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 byteorder = "1"
-ffmml = { version = "0.1", path = "../" }
+ffmml = { version = "0.1", path = "../", features = ["wav"] }

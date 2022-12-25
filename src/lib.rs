@@ -69,6 +69,9 @@
 //! - [MCK Wiki (Japanese)](https://wikiwiki.jp/mck/%E3%83%95%E3%82%A1%E3%83%9F%E3%82%B3%E3%83%B3%E9%9F%B3%E6%BA%90%E8%A9%B3%E7%B4%B0)
 #![warn(missing_docs)]
 
+#[cfg(feature = "wav")]
+pub mod wav;
+
 mod channel;
 mod clocks;
 mod commands;

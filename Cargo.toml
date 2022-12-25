@@ -11,7 +11,11 @@ readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+wav = ["byteorder"]
+
 [dependencies]
+byteorder = { version = "1", optional = true }
 num = "0.4"
 textparse = "0.1"
 
