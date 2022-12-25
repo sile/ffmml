@@ -1,8 +1,7 @@
 use std::ops::{Add, Mul};
-
 use textparse::{
     components::{Char, Either, Maybe, While},
-    Parse, ParseError, ParseResult, Parser, Position, Span,
+    Parse, Parser, Position, Span,
 };
 
 use crate::{comment::CommentsOrWhitespaces, traits::NthFrameItem};
@@ -217,14 +216,11 @@ impl Note {
 }
 
 impl Parse for Note {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
-        let letter = parser
-            .read_char()
-            .and_then(Letter::from_char)
-            .ok_or(ParseError)?;
+        let letter = parser.read_char().and_then(Letter::from_char)?;
         let mut accidentals = 0;
-        while let Ok(x) = parser.parse::<Either<Char<'+'>, Char<'-'>>>() {
+        while let Some(x) = parser.parse::<Either<Char<'+'>, Char<'-'>>>() {
             if matches!(x, Either::A(_)) {
                 accidentals = (accidentals + 1) % 12;
             } else {
@@ -232,7 +228,7 @@ impl Parse for Note {
             }
         }
         let end = parser.current_position();
-        Ok(Self {
+        Some(Self {
             start,
             letter,
             accidentals,
@@ -268,15 +264,15 @@ impl NoteDuration {
     }
 
     pub fn dots(self) -> usize {
-        self.dots.utf8_len()
+        self.dots.len()
     }
 }
 
 impl Parse for NoteDuration {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let num = parser.parse()?;
         let dots = parser.parse()?;
-        Ok(Self { num, dots })
+        Some(Self { num, dots })
     }
 }
 
@@ -290,12 +286,12 @@ impl U4 {
 }
 
 impl Parse for U4 {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let n: U8 = parser.parse()?;
         if n.get() < 16 {
-            Ok(Self(n))
+            Some(Self(n))
         } else {
-            Err(ParseError)
+            None
         }
     }
 
@@ -314,12 +310,12 @@ impl NonZeroU4 {
 }
 
 impl Parse for NonZeroU4 {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let n: U8 = parser.parse()?;
         if 0 < n.get() && n.get() < 16 {
-            Ok(Self(n))
+            Some(Self(n))
         } else {
-            Err(ParseError)
+            None
         }
     }
 
@@ -338,12 +334,12 @@ impl NonZeroU8 {
 }
 
 impl Parse for NonZeroU8 {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let n = parser.parse::<U8>()?;
         if n.value > 0 {
-            Ok(Self(n))
+            Some(Self(n))
         } else {
-            Err(ParseError)
+            None
         }
     }
 
@@ -352,6 +348,7 @@ impl Parse for NonZeroU8 {
     }
 }
 
+// TODO: U8<MIN,MAX>
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Span)]
 pub struct U8<const NAMED: bool = true> {
     start: Position,
@@ -374,20 +371,17 @@ impl<const NAMED: bool> U8<NAMED> {
 }
 
 impl<const NAMED: bool> Parse for U8<NAMED> {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
         let mut value: u8 = 0;
-        while let Ok(d) = parser.parse::<Digit>() {
-            value = value
-                .checked_mul(10)
-                .and_then(|v| v.checked_add(d.value))
-                .ok_or(ParseError)?;
+        while let Some(d) = parser.parse::<Digit>() {
+            value = value.checked_mul(10).and_then(|v| v.checked_add(d.value))?;
         }
         let end = parser.current_position();
         if start == end {
-            Err(ParseError)
+            None
         } else {
-            Ok(Self { start, value, end })
+            Some(Self { start, value, end })
         }
     }
 
@@ -414,17 +408,17 @@ impl I8 {
 }
 
 impl Parse for I8 {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
-        let minus = parser.parse::<Char<'-'>>().is_ok();
+        let minus = parser.parse::<Char<'-'>>().is_some();
         let mut value = i16::from(parser.parse::<U8<false>>()?.get());
         let end = parser.current_position();
 
         if minus {
             value = -value;
         }
-        let value = i8::try_from(value).map_err(|_| ParseError)?;
-        Ok(Self { start, value, end })
+        let value = i8::try_from(value).ok()?;
+        Some(Self { start, value, end })
     }
 
     fn name() -> Option<fn() -> String> {
@@ -440,14 +434,15 @@ pub struct Digit {
 }
 
 impl Parse for Digit {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
-        let c = parser.peek_char().ok_or(ParseError)?;
+    fn parse(parser: &mut Parser) -> Option<Self> {
+        let start = parser.current_position();
+        let c = parser.read_char()?;
         if matches!(c, '0'..='9') {
-            let (start, end) = parser.consume_chars(1);
+            let end = parser.current_position();
             let value = c.to_digit(10).expect("unreachable") as u8;
-            Ok(Self { start, value, end })
+            Some(Self { start, value, end })
         } else {
-            Err(ParseError)
+            None
         }
     }
 }
@@ -481,12 +476,12 @@ impl Octave {
 }
 
 impl Parse for Octave {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let n: U8 = parser.parse()?;
         if 2 <= n.get() && n.get() <= 7 {
-            Ok(Self(n))
+            Some(Self(n))
         } else {
-            Err(ParseError)
+            None
         }
     }
 
@@ -511,12 +506,12 @@ impl Quantize {
 }
 
 impl Parse for Quantize {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let n: U8 = parser.parse()?;
         if (1..=8).contains(&n.get()) {
-            Ok(Self(n))
+            Some(Self(n))
         } else {
-            Err(ParseError)
+            None
         }
     }
 
@@ -590,12 +585,12 @@ impl Volume {
 }
 
 impl Parse for Volume {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let n: U8 = parser.parse()?;
         if n.get() > 15 {
-            Err(ParseError)
+            None
         } else {
-            Ok(Self(n))
+            Some(Self(n))
         }
     }
 
@@ -630,7 +625,7 @@ impl<T> LoopList<T> {
 }
 
 impl<T: Parse> Parse for LoopList<T> {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
         let _: Char<'{'> = parser.parse()?;
 
@@ -638,7 +633,7 @@ impl<T: Parse> Parse for LoopList<T> {
         let mut items = Vec::new();
         loop {
             let _: CommentsOrWhitespaces = parser.parse()?;
-            if parser.parse::<Char<'|'>>().is_ok() {
+            if parser.parse::<Char<'|'>>().is_some() {
                 loop_point = Some(items.len());
                 let _: CommentsOrWhitespaces = parser.parse()?;
             }
@@ -646,16 +641,16 @@ impl<T: Parse> Parse for LoopList<T> {
             items.push(parser.parse::<T>()?);
 
             let _: CommentsOrWhitespaces = parser.parse()?;
-            if parser.parse::<Char<','>>().is_ok() {
+            if parser.parse::<Char<','>>().is_some() {
                 continue;
             }
 
-            if parser.parse::<Char<'}'>>().is_ok() {
+            if parser.parse::<Char<'}'>>().is_some() {
                 break;
             }
         }
         let end = parser.current_position();
-        Ok(Self {
+        Some(Self {
             start,
             items,
             loop_point,
@@ -837,12 +832,12 @@ impl OscillatorKind {
 }
 
 impl Parse for OscillatorKind {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let n: U8 = parser.parse()?;
         if n.get() < 3 {
-            Ok(Self(n))
+            Some(Self(n))
         } else {
-            Err(ParseError)
+            None
         }
     }
 

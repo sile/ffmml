@@ -4,8 +4,8 @@ use crate::{
 };
 use std::collections::BTreeMap;
 use textparse::{
-    components::{Char, Empty},
-    Parse, ParseError, ParseResult, Parser, Span,
+    components::{Char, Empty, Str},
+    Parse, Parser, Span,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -18,24 +18,25 @@ pub struct Macros {
 }
 
 impl Macros {
-    pub fn parse(&mut self, parser: &mut Parser) -> ParseResult<()> {
-        while parser.peek_char() == Some('@') {
-            if let Ok(m) = parser.parse::<VolumeMacro>() {
-                self.volumes.insert(m.number(), m);
-            } else if let Ok(m) = parser.parse::<TimbreMacro>() {
-                self.timbres.insert(m.number(), m);
-            } else if let Ok(m) = parser.parse::<PitchMacro>() {
-                self.pitches.insert(m.number(), m);
-            } else if let Ok(m) = parser.parse::<ArpeggioMacro>() {
-                self.arpeggios.insert(m.number(), m);
-            } else if let Ok(m) = parser.parse::<VibratoMacro>() {
-                self.vibratos.insert(m.number(), m);
-            } else {
-                return Err(ParseError);
-            }
-            let _: CommentsOrWhitespaces = parser.parse()?;
-        }
-        Ok(())
+    pub fn parse(&mut self, parser: &mut Parser) -> Option<()> {
+        todo!()
+        // while parser.peek_char() == Some('@') {
+        //     if let Ok(m) = parser.parse::<VolumeMacro>() {
+        //         self.volumes.insert(m.number(), m);
+        //     } else if let Ok(m) = parser.parse::<TimbreMacro>() {
+        //         self.timbres.insert(m.number(), m);
+        //     } else if let Ok(m) = parser.parse::<PitchMacro>() {
+        //         self.pitches.insert(m.number(), m);
+        //     } else if let Ok(m) = parser.parse::<ArpeggioMacro>() {
+        //         self.arpeggios.insert(m.number(), m);
+        //     } else if let Ok(m) = parser.parse::<VibratoMacro>() {
+        //         self.vibratos.insert(m.number(), m);
+        //     } else {
+        //         return Err(ParseError);
+        //     }
+        //     let _: CommentsOrWhitespaces = parser.parse()?;
+        // }
+        // Ok(())
     }
 }
 
@@ -43,12 +44,12 @@ impl Macros {
 pub struct MacroNumber(U8);
 
 impl Parse for MacroNumber {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let n: U8 = parser.parse()?;
         if n.get() < 128 {
-            Ok(Self(n))
+            Some(Self(n))
         } else {
-            Err(ParseError)
+            None
         }
     }
 
@@ -105,7 +106,7 @@ impl VolumeMacro {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct PitchMacro {
-    key: MacroKey<(Char<'E'>, Char<'P'>)>,
+    key: MacroKey<Str<'E', 'P'>>,
     envelope: PitchEnvelope,
 }
 
@@ -121,7 +122,7 @@ impl PitchMacro {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct ArpeggioMacro {
-    key: MacroKey<(Char<'E'>, Char<'N'>)>,
+    key: MacroKey<Str<'E', 'N'>>,
     envelope: NoteEnvelope,
 }
 
@@ -153,7 +154,7 @@ impl TimbreMacro {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct VibratoMacro {
-    key: MacroKey<(Char<'M'>, Char<'P'>)>,
+    key: MacroKey<Str<'M', 'P'>>,
     vibrato: Vibrato,
 }
 

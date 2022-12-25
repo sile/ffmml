@@ -1,12 +1,8 @@
-use crate::{
-    commands::Command,
-    comment::{Comment, CommentsOrWhitespaces},
-    oscillators::Oscillator,
-};
+use crate::{commands::Command, comment::Comment, oscillators::Oscillator};
 use std::collections::{BTreeMap, BTreeSet};
 use textparse::{
     components::{Either, Whitespace},
-    Parse, ParseError, ParseResult, Parser, Position, Span,
+    Parse, Parser, Position, Span,
 };
 
 #[derive(Debug, Clone)]
@@ -29,35 +25,36 @@ impl Channels {
         self.0.insert(name, Channel::new(oscillator));
     }
 
-    pub fn parse(&mut self, parser: &mut Parser) -> ParseResult<()> {
-        while !parser.is_eos() {
-            let names = parser
-                .parse::<ChannelNames>()?
-                .check_if_defined(parser, &self)?
-                .names;
-            let _: Space = parser.parse()?;
-            let _: CommentsOrWhitespaces = parser.parse()?;
+    pub fn parse(&mut self, parser: &mut Parser) -> Option<()> {
+        // while !parser.is_eos() {
+        //     let names = parser
+        //         .parse::<ChannelNames>()?
+        //         .check_if_defined(parser, &self)?
+        //         .names;
+        //     let _: Space = parser.parse()?;
+        //     let _: CommentsOrWhitespaces = parser.parse()?;
 
-            let mut has_space = false;
-            while let Ok(command) = parser.parse::<Command>() {
-                for name in &names {
-                    self.0
-                        .get_mut(name)
-                        .expect("unreachable")
-                        .commands
-                        .push(command.clone());
-                }
+        //     let mut has_space = false;
+        //     while let Ok(command) = parser.parse::<Command>() {
+        //         for name in &names {
+        //             self.0
+        //                 .get_mut(name)
+        //                 .expect("unreachable")
+        //                 .commands
+        //                 .push(command.clone());
+        //         }
 
-                let space: CommentsOrWhitespaces = parser.parse()?;
-                has_space = !space.is_empty();
-            }
+        //         let space: CommentsOrWhitespaces = parser.parse()?;
+        //         has_space = !space.is_empty();
+        //     }
 
-            if !has_space && !parser.is_eos() {
-                // Needs spaces before channel names.
-                return Err(ParseError);
-            }
-        }
-        Ok(())
+        //     if !has_space && !parser.is_eos() {
+        //         // Needs spaces before channel names.
+        //         return Err(ParseError);
+        //     }
+        // }
+        // Ok(())
+        todo!()
     }
 
     pub fn into_iter(self) -> impl Iterator<Item = (ChannelName, Channel)> {
@@ -137,15 +134,16 @@ pub struct ChannelNames {
 }
 
 impl ChannelNames {
-    fn check_if_defined(mut self, parser: &mut Parser, channels: &Channels) -> ParseResult<Self> {
-        if let Some(i) = self.names.iter().position(|n| !channels.0.contains_key(n)) {
-            self.start = Position::new(self.start.get() + i);
-            parser.rollback(self);
-            Err(ParseError)
-        } else {
-            Ok(self)
-        }
-    }
+    // TODO
+    // fn check_if_defined(mut self, parser: &mut Parser, channels: &Channels) -> Option<Self> {
+    //     if let Some(i) = self.names.iter().position(|n| !channels.0.contains_key(n)) {
+    //         self.start = Position::new(self.start.get() + i);
+    //         parser.rollback(self);
+    //         Err(ParseError)
+    //     } else {
+    //         Ok(self)
+    //     }
+    // }
 
     pub fn names(&self) -> &BTreeSet<ChannelName> {
         &self.names
@@ -153,18 +151,18 @@ impl ChannelNames {
 }
 
 impl Parse for ChannelNames {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
         let mut names = BTreeSet::new();
         while let Some(name) = parser.peek_char().and_then(ChannelName::from_char) {
             names.insert(name);
-            parser.consume_chars(1);
+            parser.read_char();
         }
         if names.is_empty() {
-            return Err(ParseError);
+            return None;
         }
         let end = parser.current_position();
-        Ok(Self { start, names, end })
+        Some(Self { start, names, end })
     }
 
     fn name() -> Option<fn() -> String> {

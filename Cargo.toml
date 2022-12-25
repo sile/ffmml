@@ -7,14 +7,10 @@ edition = "2021"
 
 [dependencies]
 num = "0.4"
-textparse = "0.0.2"
+textparse = "0.1"
 
 [workspace]
 members = [
   "ffmmlc",
   "ffmml_gui",
 ]
-
-[patch.crates-io]
-textparse = { path = "../textparse/" }
-pagurus = { path = "../pagurus/" }

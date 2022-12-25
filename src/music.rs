@@ -1,14 +1,11 @@
-use std::sync::Arc;
-
 use crate::{
     channel::Channels,
-    comment::CommentsOrWhitespaces,
-    definitions::{Composer, Definition, Programer, Title},
+    definitions::{Composer, Programer, Title},
     macros::Macros,
-    oscillators::Oscillator,
     player::MusicPlayer,
 };
-use textparse::{ParseResult, Parser};
+use std::sync::Arc;
+use textparse::{ParseError, Parser};
 
 #[derive(Debug, Clone)]
 pub struct Music {
@@ -20,54 +17,53 @@ pub struct Music {
 }
 
 impl Music {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
-        let mut channels = Channels::new();
+    fn parse(parser: &mut Parser) -> Option<Self> {
+        // let mut channels = Channels::new();
 
-        let mut title = None;
-        let mut composer = None;
-        let mut programer = None;
-        loop {
-            let _: CommentsOrWhitespaces = parser.parse()?;
-            if parser.peek_char() != Some('#') {
-                break;
-            }
+        // let mut title = None;
+        // let mut composer = None;
+        // let mut programer = None;
+        // loop {
+        //     let _: CommentsOrWhitespaces = parser.parse()?;
+        //     if parser.peek_char() != Some('#') {
+        //         break;
+        //     }
 
-            match parser.parse()? {
-                Definition::Title(x) => {
-                    title = Some(x);
-                }
-                Definition::Composer(x) => {
-                    composer = Some(x);
-                }
-                Definition::Programer(x) => {
-                    programer = Some(x);
-                }
-                Definition::Channel(x) => {
-                    for name in x.channel_names().names() {
-                        channels.add_channel(*name, Oscillator::from_kind(x.oscillator_kind()));
-                    }
-                }
-            }
-        }
+        //     match parser.parse()? {
+        //         Definition::Title(x) => {
+        //             title = Some(x);
+        //         }
+        //         Definition::Composer(x) => {
+        //             composer = Some(x);
+        //         }
+        //         Definition::Programer(x) => {
+        //             programer = Some(x);
+        //         }
+        //         Definition::Channel(x) => {
+        //             for name in x.channel_names().names() {
+        //                 channels.add_channel(*name, Oscillator::from_kind(x.oscillator_kind()));
+        //             }
+        //         }
+        //     }
+        // }
 
-        // TODOO: macro / definition order fix
-        let _: CommentsOrWhitespaces = parser.parse()?;
-        let mut macros = Macros::default();
-        macros.parse(parser)?;
+        // // TODOO: macro / definition order fix
+        // let _: CommentsOrWhitespaces = parser.parse()?;
+        // let mut macros = Macros::default();
+        // macros.parse(parser)?;
 
-        let _: CommentsOrWhitespaces = parser.parse()?;
-        channels.parse(parser)?;
+        // let _: CommentsOrWhitespaces = parser.parse()?;
+        // channels.parse(parser)?;
 
-        Ok(Self {
-            title,
-            composer,
-            programer,
-            macros: Arc::new(macros),
-            channels,
-        })
+        // Ok(Self {
+        //     title,
+        //     composer,
+        //     programer,
+        //     macros: Arc::new(macros),
+        //     channels,
+        // })
+        todo!()
     }
-
-    // TODO: validate
 
     pub fn title(&self) -> Option<&str> {
         self.title.as_ref().map(|x| x.get())
@@ -99,38 +95,14 @@ impl Music {
 }
 
 impl std::str::FromStr for Music {
-    type Err = ParseMusicError;
+    type Err = ParseError; // TODO
 
     fn from_str(script: &str) -> Result<Self, Self::Err> {
         let mut parser = Parser::new(script);
-        Self::parse(&mut parser).map_err(|_| ParseMusicError {
-            parser: parser.into_owned(),
-            filename: None,
-        })
+        Self::parse(&mut parser).ok_or_else(|| parser.into_parse_error())
     }
 }
 
-// TODO: implement Error
+// TODO
 #[derive(Debug)]
-pub struct ParseMusicError {
-    parser: Parser<'static>,
-    filename: Option<String>,
-}
-
-impl ParseMusicError {
-    pub fn filename(mut self, filename: &str) -> Self {
-        self.filename = Some(filename.to_owned());
-        self
-    }
-}
-
-impl std::fmt::Display for ParseMusicError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message = self
-            .parser
-            .error_message_builder()
-            .filename(self.filename.as_ref().map_or("<SCRIPT>", |s| s.as_str()))
-            .build();
-        write!(f, "{message}")
-    }
-}
+pub struct ParseMusicError {}

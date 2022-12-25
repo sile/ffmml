@@ -6,7 +6,7 @@ use crate::{
 use std::marker::PhantomData;
 use textparse::{
     components::{Char, NonEmpty, OneOfThree, Str, While},
-    Parse, ParseError, ParseResult, Parser, Position, Span,
+    Parse, Parser, Position, Span,
 };
 
 #[derive(Debug, Clone, Span, Parse)]
@@ -66,7 +66,7 @@ impl Channel {
 }
 
 impl Parse for Channel {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
         let _: Str<'#', 'C', 'A', 'N', 'N', 'E', 'L'> = parser.parse()?;
         let _: NonEmpty<While<SpaceOrTabOrComment>> = parser.parse()?;
@@ -75,7 +75,7 @@ impl Parse for Channel {
         let oscillator_kind = parser.parse()?;
         let end = parser.current_position();
 
-        Ok(Self {
+        Some(Self {
             start,
             channel_names,
             oscillator_kind,
@@ -97,7 +97,7 @@ struct DefineString<T> {
 }
 
 impl<T: Parse> Parse for DefineString<T> {
-    fn parse(parser: &mut Parser) -> ParseResult<Self> {
+    fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
         let _: (Char<'#'>, T, NonEmpty<While<SpaceOrTabOrComment>>) = parser.parse()?;
         let mut end;
@@ -113,9 +113,9 @@ impl<T: Parse> Parse for DefineString<T> {
             value.push(c);
         }
         if value.is_empty() {
-            return Err(ParseError);
+            return None;
         }
-        Ok(Self {
+        Some(Self {
             start,
             label: PhantomData,
             value,

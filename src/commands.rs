@@ -62,7 +62,7 @@ impl NoteCommand {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct ArpeggioCommand {
-    _prefix: (Char<'E'>, Char<'N'>),
+    _prefix: Str<'E', 'N'>,
     macro_number: Either<MacroNumber, Off>,
 }
 
@@ -114,7 +114,7 @@ impl VolumeCommand {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct VolumeEnvelopeCommand {
-    _prefix: (Char<'@'>, Char<'v'>),
+    _prefix: Str<'@', 'v'>,
     macro_number: MacroNumber,
 }
 
@@ -126,8 +126,7 @@ impl VolumeEnvelopeCommand {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct VolumeUpCommand {
-    _prefix0: Char<'v'>,
-    _prefix1: Char<'+'>,
+    _prefix: Str<'v', '+'>,
     count: Either<NonZeroU4, Not<Digit>>,
 }
 
@@ -142,8 +141,7 @@ impl VolumeUpCommand {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct VolumeDownCommand {
-    _prefix0: Char<'v'>,
-    _prefix1: Char<'-'>,
+    _prefix: Str<'v', '-'>,
     count: Either<NonZeroU4, Not<Digit>>,
 }
 
@@ -195,7 +193,7 @@ impl DetuneCommand {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct PitchEnvelopeCommand {
-    _prefix: (Char<'E'>, Char<'P'>),
+    _prefix: Str<'E', 'P'>,
     macro_number: Either<MacroNumber, Off>,
 }
 
@@ -223,7 +221,7 @@ impl PitchSweepCommand {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct VibratoCommand {
-    _prefix: (Char<'M'>, Char<'P'>),
+    _prefix: Str<'M', 'P'>,
     macro_number: Either<MacroNumber, Off>,
 }
 
@@ -257,7 +255,7 @@ impl TimbreCommand {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct TimbresCommand {
-    _prefix: (Char<'@'>, Char<'@'>),
+    _prefix: Str<'@', '@'>,
     macro_number: MacroNumber,
 }
 
@@ -366,7 +364,7 @@ impl QuantizeCommand {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct QuantizeFrameCommand {
-    _prefix: (Char<'@'>, Char<'q'>),
+    _prefix: Str<'@', 'q'>,
     quantize: QuantizeFrame,
 }
 
