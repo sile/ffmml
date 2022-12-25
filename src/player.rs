@@ -83,9 +83,10 @@ impl Iterator for MusicPlayer {
             return None;
         }
 
+        let n = self.channels.len() as f32;
         let mut sample = None;
         for x in self.channels.values_mut().flat_map(|c| c.next()) {
-            sample = Some(sample.unwrap_or(Sample::ZERO) + x);
+            sample = Some(sample.unwrap_or(Sample::ZERO) + x / n);
         }
 
         if let Some(e) = self.take_last_error() {

@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul};
+use std::ops::{Add, Div, Mul};
 use textparse::{
     components::{Char, Digit, Either, Maybe, While},
     Parse, Parser, Position, Span,
@@ -45,6 +45,14 @@ impl Mul<f32> for Sample {
 
     fn mul(self, rhs: f32) -> Self::Output {
         Self(self.0 * rhs)
+    }
+}
+
+impl Div<f32> for Sample {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Self(self.0 / rhs)
     }
 }
 
@@ -433,7 +441,7 @@ impl Volume {
 
 impl Default for Volume {
     fn default() -> Self {
-        Self(Int::new(10))
+        Self(Int::new(15))
     }
 }
 
