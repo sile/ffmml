@@ -90,10 +90,9 @@ fn main() {
 
         // Parse text.
         let now = std::time::Instant::now();
-        let music: ffmml::Music = mml.parse::<ffmml::Music>().map_err(|e| {
-            e.filename(&args.input_filename().to_string_lossy())
-                .to_string()
-        })?;
+        let music: ffmml::Music = mml
+            .parse::<ffmml::Music>()
+            .map_err(|e| e.file_path(&args.input_filename()).to_string())?;
         eprintln!("[parse] elapsed: {:?}", now.elapsed());
         // TODO: show music information
 

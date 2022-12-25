@@ -19,24 +19,23 @@ pub struct Macros {
 
 impl Macros {
     pub fn parse(&mut self, parser: &mut Parser) -> Option<()> {
-        todo!()
-        // while parser.peek_char() == Some('@') {
-        //     if let Ok(m) = parser.parse::<VolumeMacro>() {
-        //         self.volumes.insert(m.number(), m);
-        //     } else if let Ok(m) = parser.parse::<TimbreMacro>() {
-        //         self.timbres.insert(m.number(), m);
-        //     } else if let Ok(m) = parser.parse::<PitchMacro>() {
-        //         self.pitches.insert(m.number(), m);
-        //     } else if let Ok(m) = parser.parse::<ArpeggioMacro>() {
-        //         self.arpeggios.insert(m.number(), m);
-        //     } else if let Ok(m) = parser.parse::<VibratoMacro>() {
-        //         self.vibratos.insert(m.number(), m);
-        //     } else {
-        //         return Err(ParseError);
-        //     }
-        //     let _: CommentsOrWhitespaces = parser.parse()?;
-        // }
-        // Ok(())
+        while parser.peek_char() == Some('@') {
+            if let Some(m) = parser.parse::<VolumeMacro>() {
+                self.volumes.insert(m.number(), m);
+            } else if let Some(m) = parser.parse::<TimbreMacro>() {
+                self.timbres.insert(m.number(), m);
+            } else if let Some(m) = parser.parse::<PitchMacro>() {
+                self.pitches.insert(m.number(), m);
+            } else if let Some(m) = parser.parse::<ArpeggioMacro>() {
+                self.arpeggios.insert(m.number(), m);
+            } else if let Some(m) = parser.parse::<VibratoMacro>() {
+                self.vibratos.insert(m.number(), m);
+            } else {
+                return None;
+            }
+            let _: CommentsOrWhitespaces = parser.parse()?;
+        }
+        Some(())
     }
 }
 

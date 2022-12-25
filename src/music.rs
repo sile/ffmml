@@ -1,11 +1,18 @@
 use crate::{
     channel::Channels,
-    definitions::{Composer, Programer, Title},
+    comment::CommentsOrWhitespaces,
+    definitions::{Composer, Definition, Programer, Title},
     macros::Macros,
+    oscillators::Oscillator,
     player::MusicPlayer,
 };
-use std::sync::Arc;
-use textparse::{ParseError, Parser};
+use std::{
+    borrow::Cow,
+    error::Error,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+use textparse::{ParseError, Parser, Position, Span};
 
 #[derive(Debug, Clone)]
 pub struct Music {
@@ -17,52 +24,57 @@ pub struct Music {
 }
 
 impl Music {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        // let mut channels = Channels::new();
+    pub fn new(text: &str) -> Result<Self, ParseMusicError> {
+        text.parse()
+    }
 
-        // let mut title = None;
-        // let mut composer = None;
-        // let mut programer = None;
-        // loop {
-        //     let _: CommentsOrWhitespaces = parser.parse()?;
-        //     if parser.peek_char() != Some('#') {
-        //         break;
-        //     }
+    fn parse(parser: &mut Parser) -> Option<Result<Self, ParseMusicError>> {
+        let mut channels = Channels::new();
 
-        //     match parser.parse()? {
-        //         Definition::Title(x) => {
-        //             title = Some(x);
-        //         }
-        //         Definition::Composer(x) => {
-        //             composer = Some(x);
-        //         }
-        //         Definition::Programer(x) => {
-        //             programer = Some(x);
-        //         }
-        //         Definition::Channel(x) => {
-        //             for name in x.channel_names().names() {
-        //                 channels.add_channel(*name, Oscillator::from_kind(x.oscillator_kind()));
-        //             }
-        //         }
-        //     }
-        // }
+        let mut title = None;
+        let mut composer = None;
+        let mut programer = None;
+        loop {
+            let _: CommentsOrWhitespaces = parser.parse()?;
+            if parser.peek_char() != Some('#') {
+                break;
+            }
 
-        // // TODOO: macro / definition order fix
-        // let _: CommentsOrWhitespaces = parser.parse()?;
-        // let mut macros = Macros::default();
-        // macros.parse(parser)?;
+            match parser.parse()? {
+                Definition::Title(x) => {
+                    title = Some(x);
+                }
+                Definition::Composer(x) => {
+                    composer = Some(x);
+                }
+                Definition::Programer(x) => {
+                    programer = Some(x);
+                }
+                Definition::Channel(x) => {
+                    for name in x.channel_names().names() {
+                        channels.add_channel(*name, Oscillator::from_kind(x.oscillator_kind()));
+                    }
+                }
+            }
+        }
 
-        // let _: CommentsOrWhitespaces = parser.parse()?;
-        // channels.parse(parser)?;
+        // TODOO: macro / definition order fix
+        let _: CommentsOrWhitespaces = parser.parse()?;
+        let mut macros = Macros::default();
+        macros.parse(parser)?;
 
-        // Ok(Self {
-        //     title,
-        //     composer,
-        //     programer,
-        //     macros: Arc::new(macros),
-        //     channels,
-        // })
-        todo!()
+        let _: CommentsOrWhitespaces = parser.parse()?;
+        if let Err(e) = channels.parse(parser)? {
+            return Some(Err(e));
+        }
+
+        Some(Ok(Self {
+            title,
+            composer,
+            programer,
+            macros: Arc::new(macros),
+            channels,
+        }))
     }
 
     pub fn title(&self) -> Option<&str> {
@@ -95,14 +107,99 @@ impl Music {
 }
 
 impl std::str::FromStr for Music {
-    type Err = ParseError; // TODO
+    type Err = ParseMusicError;
 
-    fn from_str(script: &str) -> Result<Self, Self::Err> {
-        let mut parser = Parser::new(script);
-        Self::parse(&mut parser).ok_or_else(|| parser.into_parse_error())
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let mut parser = Parser::new(text);
+        match Self::parse(&mut parser) {
+            None => Err(ParseMusicError::from(parser.into_parse_error())),
+            Some(Err(mut e)) => {
+                e.text = text.to_owned();
+                Err(e)
+            }
+            Some(Ok(v)) => Ok(v),
+        }
     }
 }
 
-// TODO
-#[derive(Debug)]
-pub struct ParseMusicError {}
+pub struct ParseMusicError {
+    textparse_error: Option<ParseError>,
+    text: String,
+    position: Position,
+    reason: String,
+    file_path: Option<PathBuf>,
+}
+
+impl ParseMusicError {
+    pub(crate) fn new(item: impl Span, reason: &str) -> Self {
+        Self {
+            textparse_error: None,
+            text: String::new(),
+            position: item.start_position(),
+            reason: reason.to_owned(),
+            file_path: None,
+        }
+    }
+
+    pub fn file_path<P: AsRef<Path>>(mut self, file_path: P) -> Self {
+        if let Some(e) = self.textparse_error.take() {
+            self.textparse_error = Some(e.file_path(file_path));
+        } else {
+            self.file_path = Some(file_path.as_ref().to_path_buf());
+        }
+        self
+    }
+}
+
+impl std::fmt::Debug for ParseMusicError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(e) = &self.textparse_error {
+            return e.fmt(f);
+        }
+
+        let offset = self.position.get();
+        let (line, column) = self.position.line_and_column(&self.text);
+        writeln!(f, "{}", self.reason)?;
+        writeln!(
+            f,
+            "  --> {}:{line}:{column}",
+            self.file_path
+                .as_ref()
+                .map(|s| s.to_string_lossy())
+                .unwrap_or(Cow::Borrowed("<UNKNOWN>"))
+        )?;
+
+        let line_len = format!("{line}").len();
+        writeln!(f, "{:line_len$} |", ' ')?;
+        writeln!(
+            f,
+            "{line} | {}",
+            self.text[offset + 1 - column..]
+                .lines()
+                .next()
+                .unwrap_or("")
+        )?;
+        writeln!(f, "{:line_len$} | {:>column$} {}", ' ', '^', self.reason)?;
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for ParseMusicError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl Error for ParseMusicError {}
+
+impl From<ParseError> for ParseMusicError {
+    fn from(value: ParseError) -> Self {
+        Self {
+            textparse_error: Some(value),
+            text: String::new(),
+            position: Position::new(0),
+            reason: String::new(),
+            file_path: None,
+        }
+    }
+}
