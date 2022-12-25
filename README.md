@@ -24,7 +24,8 @@ But there are (known) differences between FFMML and MCK as follows:
 
 [MCK]: https://www.nesdev.org/mckc-e.txt
 
-# Examples
+Examples
+--------
 
 The following example parses an MML script and generates audio data:
 ```rust
@@ -62,7 +63,8 @@ $ cat examples/music01.mml | ffmmlc > music01.wav
 $ play music01.wav
 ```
 
-# References
+References
+----------
 
 ### About MML
 
