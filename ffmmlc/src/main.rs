@@ -5,15 +5,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// FFMML compiler.
 #[derive(Debug, Parser)]
+#[command(version)]
 struct Args {
+    /// Input file path.
     #[clap(default_value = "-")]
     input_file: PathBuf,
 
+    /// Output WAV file path.
     #[clap(short, long)]
     output_file: Option<PathBuf>,
 
-    #[clap(long, default_value_t = 44100)]
+    /// Sample rate.
+    #[clap(long, default_value_t = 48000)]
     sample_rate: u16,
 }
 
@@ -105,7 +110,7 @@ fn main() {
             .to_writer(args.create_output_writer()?)
             .map_err(|e| {
                 format!(
-                    "failed to write WAVE file to {} ({e})",
+                    "failed to write WAV file to {} ({e})",
                     args.output_file_path().to_string_lossy()
                 )
             })?;
