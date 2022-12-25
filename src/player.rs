@@ -28,11 +28,11 @@ pub struct MusicPlayer {
 }
 
 impl MusicPlayer {
-    pub(crate) fn new(music: Music, sample_rate: u16) -> Self {
+    pub(crate) fn new(music: &Music, sample_rate: u16) -> Self {
         let macros = music.macros();
         let channels = music
-            .into_channels()
-            .into_iter()
+            .channels()
+            .iter()
             .map(|(name, channel)| {
                 (
                     name,
@@ -136,7 +136,7 @@ impl PlayMusicError {
 #[derive(Debug)]
 struct ChannelPlayer {
     oscillator: Oscillator,
-    commands: Vec<Command>,
+    commands: Arc<Vec<Command>>,
     command_index: usize,
     macros: Arc<Macros>,
     octave: Octave,

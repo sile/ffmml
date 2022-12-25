@@ -14,7 +14,7 @@ use std::{
 };
 use textparse::{ParseError, Parser, Position, Span};
 
-/// TODO: A music instance built from a MML script.
+/// Music object built from an MML script.
 #[derive(Debug, Clone)]
 pub struct Music {
     title: Option<Title>,
@@ -25,8 +25,11 @@ pub struct Music {
 }
 
 impl Music {
-    pub fn new(text: &str) -> Result<Self, ParseMusicError> {
-        text.parse()
+    /// Parses the given MML script and creates a [`Music`] instance.
+    ///
+    /// This is equivalent with `script.parse::<Music>()`.
+    pub fn new(script: &str) -> Result<Self, ParseMusicError> {
+        script.parse()
     }
 
     fn parse(parser: &mut Parser) -> Option<Result<Self, ParseMusicError>> {
@@ -82,10 +85,14 @@ impl Music {
         self.title.as_ref().map(|x| x.get())
     }
 
+    /// Name of the composer of this music defined by `#COMPOSER <VALUE>` in the script.
     pub fn composer(&self) -> Option<&str> {
         self.composer.as_ref().map(|x| x.get())
     }
 
+    /// Name of the programmer who wrote this music script defined by `#PROGRAMER <VALUE>` in the script.
+    ///
+    /// Note that the typo is intentional.
     pub fn programer(&self) -> Option<&str> {
         self.programer.as_ref().map(|x| x.get())
     }
@@ -94,11 +101,12 @@ impl Music {
         self.macros.clone()
     }
 
-    pub(crate) fn into_channels(self) -> Channels {
-        self.channels
+    pub(crate) fn channels(&self) -> &Channels {
+        &self.channels
     }
 
-    pub fn play(self, sample_rate: u16) -> MusicPlayer {
+    /// Returns a [`MusicPlayer`] instance that generates audio samples.
+    pub fn play(&self, sample_rate: u16) -> MusicPlayer {
         MusicPlayer::new(self, sample_rate)
     }
 }
@@ -119,6 +127,7 @@ impl std::str::FromStr for Music {
     }
 }
 
+/// An error returned if it failed to parse an MML script.
 pub struct ParseMusicError {
     textparse_error: Option<Box<ParseError>>,
     text: String,
@@ -138,6 +147,9 @@ impl ParseMusicError {
         }
     }
 
+    /// Sets the file path of the parse target text.
+    ///
+    /// The default value is `<UNKNOWN>`.
     pub fn file_path<P: AsRef<Path>>(mut self, file_path: P) -> Self {
         if let Some(e) = self.textparse_error.take() {
             self.textparse_error = Some(Box::new(e.file_path(file_path)));

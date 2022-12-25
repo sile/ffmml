@@ -4,7 +4,10 @@ use crate::{
     oscillators::Oscillator,
     ParseMusicError,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 use textparse::{
     components::{Either, Whitespace},
     Parse, Parser, Position, Span,
@@ -31,9 +34,11 @@ impl Channels {
     }
 
     pub fn parse(&mut self, parser: &mut Parser) -> Option<Result<(), ParseMusicError>> {
+        let mut channels: BTreeMap<_, Vec<Command>> =
+            self.0.keys().copied().map(|k| (k, Vec::new())).collect();
         while !parser.is_eos() {
             let names = parser.parse::<ChannelNames>()?;
-            if let Some(i) = names.names.iter().position(|n| !self.0.contains_key(n)) {
+            if let Some(i) = names.names.iter().position(|n| !channels.contains_key(n)) {
                 let error_position = Position::new(names.start_position().get() + i);
                 return Some(Err(ParseMusicError::new(
                     error_position,
@@ -48,10 +53,9 @@ impl Channels {
             let mut has_space = false;
             while let Some(command) = parser.parse::<Command>() {
                 for name in &names {
-                    self.0
+                    channels
                         .get_mut(name)
                         .expect("unreachable")
-                        .commands
                         .push(command.clone());
                 }
 
@@ -64,11 +68,14 @@ impl Channels {
                 return None;
             }
         }
+        for (key, channel) in &mut self.0 {
+            channel.commands = Arc::new(channels.remove(&key).expect("unreachable"));
+        }
         Some(Ok(()))
     }
 
-    pub fn into_iter(self) -> impl Iterator<Item = (ChannelName, Channel)> {
-        self.0.into_iter()
+    pub fn iter(&self) -> impl '_ + Iterator<Item = (ChannelName, Channel)> {
+        self.0.iter().map(|(k, v)| (*k, v.clone()))
     }
 }
 
@@ -176,14 +183,14 @@ struct Space(Either<Whitespace, Comment>);
 #[derive(Debug, Clone)]
 pub struct Channel {
     pub oscillator: Oscillator,
-    pub commands: Vec<Command>,
+    pub commands: Arc<Vec<Command>>,
 }
 
 impl Channel {
     fn new(oscillator: Oscillator) -> Self {
         Self {
             oscillator,
-            commands: Vec::new(),
+            commands: Arc::new(Vec::new()),
         }
     }
 }
