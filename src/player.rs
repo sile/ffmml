@@ -64,6 +64,14 @@ impl MusicPlayer {
         self.channels.values().all(|c| c.eos)
     }
 
+    /// Returns the elapsed time since the beginning of this music.
+    pub fn elapsed(&self) -> Duration {
+        self.channels()
+            .map(|c| c.elapsed())
+            .max()
+            .unwrap_or_default()
+    }
+
     /// Takes the last error if it exists.
     pub fn take_last_error(&mut self) -> Option<PlayMusicError> {
         for (name, channel) in &mut self.channels {
@@ -753,8 +761,8 @@ impl<'a> ChannelState<'a> {
         self.player.eos
     }
 
-    /// Returns the current playing position.
-    pub fn position(&self) -> Duration {
+    /// Returns the elapsed time since the beginning of this music.
+    pub fn elapsed(&self) -> Duration {
         self.player.clocks.sample_clock().now()
     }
 

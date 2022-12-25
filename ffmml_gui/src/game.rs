@@ -32,7 +32,7 @@ impl FfmmlGame {
                     self.start_time = system.clock_game_time();
                 }
                 let elapsed = system.clock_game_time() - self.start_time;
-                let wait = player.current_position().saturating_sub(elapsed);
+                let wait = player.elapsed().saturating_sub(elapsed);
                 system.clock_set_timeout(TimeoutTag::new(0), wait);
             }
         }
