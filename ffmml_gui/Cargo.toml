@@ -10,6 +10,6 @@ publish = false
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-ffmml = { path = "../", version = "0.1" }
+ffmml = { path = "../", version = "0.1", features = ["wav"] }
 log = "0.4"
 pagurus = { version = "0.6", features = ["wasm"] }

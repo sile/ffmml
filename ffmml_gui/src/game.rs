@@ -2,7 +2,7 @@ use ffmml::MusicPlayer;
 use pagurus::{
     audio::AudioData,
     event::Event,
-    failure::OrFail,
+    failure::{Failure, OrFail},
     timeout::{TimeoutId, TimeoutTag},
     Game, Result, System,
 };
@@ -65,17 +65,43 @@ impl<S: System + 'static> Game<S> for FfmmlGame {
     }
 
     fn command(&mut self, system: &mut S, name: &str, data: &[u8]) -> Result<()> {
-        (name == "playAudio").or_fail()?;
-
-        let mml = std::str::from_utf8(data).or_fail()?;
-        let music = mml
-            .parse::<ffmml::Music>()
-            .map_err(|e| e.file_path("TEXTAREA"))
-            .or_fail()?;
-        self.mml = mml.to_owned();
-        self.player = Some(music.play(SAMPLE_RATE));
-        self.play_start_time = system.clock_game_time();
-        self.play_audio_data(system).or_fail()?;
+        match name {
+            "playAudio" => {
+                let mml = std::str::from_utf8(data).or_fail()?;
+                let music = mml
+                    .parse::<ffmml::Music>()
+                    .map_err(|e| e.file_path("TEXTAREA"))
+                    .or_fail()?;
+                self.mml = mml.to_owned();
+                self.player = Some(music.play(SAMPLE_RATE));
+                self.play_start_time = system.clock_game_time();
+                self.play_audio_data(system).or_fail()?;
+            }
+            "setScript" => {
+                let mml = std::str::from_utf8(data).or_fail()?;
+                self.mml = mml.to_owned();
+            }
+            _ => {
+                return Err(Failure::new().message(format!("unknown command: {name:?}")));
+            }
+        }
         Ok(())
+    }
+
+    fn query(&mut self, _system: &mut S, name: &str) -> Result<Vec<u8>> {
+        match name {
+            "exportWav" => {
+                let music = self
+                    .mml
+                    .parse::<ffmml::Music>()
+                    .map_err(|e| e.file_path("TEXTAREA"))
+                    .or_fail()?;
+                let wav = ffmml::wav::Wav::new(&music).or_fail()?;
+                let mut buf = Vec::new();
+                wav.to_writer(&mut buf).or_fail()?;
+                Ok(buf)
+            }
+            _ => Err(Failure::new().message(format!("unknown query: {name:?}"))),
+        }
     }
 }
