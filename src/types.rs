@@ -1,6 +1,6 @@
 use std::ops::{Add, Mul};
 use textparse::{
-    components::{Char, Either, Maybe, While},
+    components::{Char, Digit, Either, Maybe, While},
     Parse, Parser, Position, Span,
 };
 
@@ -49,7 +49,7 @@ impl Mul<f32> for Sample {
 }
 
 #[derive(Debug, Default, Clone, Copy, Span, Parse)]
-pub struct Timbre(U8);
+pub struct Timbre(Int<0, 3>);
 
 impl Timbre {
     pub const DUTY_CYCLE_12: u8 = 0;
@@ -61,7 +61,7 @@ impl Timbre {
     pub const NOISE_LOOPED: u8 = 1;
 
     pub const fn get(self) -> u8 {
-        self.0.get()
+        self.0.get() as u8
     }
 }
 
@@ -238,29 +238,29 @@ impl Parse for Note {
 }
 
 #[derive(Debug, Clone, Copy, Span, Parse)]
-pub struct DefaultNoteDuration(NonZeroU8);
+pub struct DefaultNoteDuration(Int<1, 255>);
 
 impl DefaultNoteDuration {
     pub const fn get(self) -> u8 {
-        self.0.get()
+        self.0.get() as u8
     }
 }
 
 impl Default for DefaultNoteDuration {
     fn default() -> Self {
-        Self(NonZeroU8(U8::new(4)))
+        Self(Int::new(4))
     }
 }
 
 #[derive(Debug, Clone, Copy, Span)]
 pub struct NoteDuration {
-    num: Maybe<NonZeroU8>,
+    num: Maybe<Int<1, 255>>,
     dots: While<Char<'.'>>,
 }
 
 impl NoteDuration {
     pub fn get(self) -> Option<u8> {
-        self.num.get().map(|n| n.get())
+        self.num.get().map(|n| n.get() as u8)
     }
 
     pub fn dots(self) -> usize {
@@ -276,88 +276,15 @@ impl Parse for NoteDuration {
     }
 }
 
-#[derive(Debug, Clone, Copy, Span)]
-pub struct U4(U8);
-
-impl U4 {
-    pub const fn get(self) -> u8 {
-        self.0.get()
-    }
-}
-
-impl Parse for U4 {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let n: U8 = parser.parse()?;
-        if n.get() < 16 {
-            Some(Self(n))
-        } else {
-            None
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        Some(|| "an integer betwen 0 and 15".to_owned())
-    }
-}
-
-#[derive(Debug, Clone, Copy, Span)]
-pub struct NonZeroU4(U8);
-
-impl NonZeroU4 {
-    pub const fn get(self) -> u8 {
-        self.0.get()
-    }
-}
-
-impl Parse for NonZeroU4 {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let n: U8 = parser.parse()?;
-        if 0 < n.get() && n.get() < 16 {
-            Some(Self(n))
-        } else {
-            None
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        Some(|| "an integer betwen 1 and 15".to_owned())
-    }
-}
-
-#[derive(Debug, Clone, Copy, Span)]
-pub struct NonZeroU8(U8);
-
-impl NonZeroU8 {
-    pub const fn get(self) -> u8 {
-        self.0.value
-    }
-}
-
-impl Parse for NonZeroU8 {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let n = parser.parse::<U8>()?;
-        if n.value > 0 {
-            Some(Self(n))
-        } else {
-            None
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        Some(|| "an integer between 1 and 255".to_owned())
-    }
-}
-
-// TODO: U8<MIN,MAX>
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Span)]
-pub struct U8<const NAMED: bool = true> {
+pub struct Int<const MIN: i32, const MAX: i32> {
     start: Position,
-    value: u8,
+    value: i32,
     end: Position,
 }
 
-impl<const NAMED: bool> U8<NAMED> {
-    const fn new(value: u8) -> Self {
+impl<const MIN: i32, const MAX: i32> Int<MIN, MAX> {
+    pub const fn new(value: i32) -> Self {
         Self {
             start: Position::new(0),
             value,
@@ -365,102 +292,50 @@ impl<const NAMED: bool> U8<NAMED> {
         }
     }
 
-    pub const fn get(self) -> u8 {
+    pub const fn get(self) -> i32 {
         self.value
     }
 }
 
-impl<const NAMED: bool> Parse for U8<NAMED> {
+impl<const MIN: i32, const MAX: i32> Parse for Int<MIN, MAX> {
     fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
-        let mut value: u8 = 0;
+        let mut value: i32 = 0;
+        let minus = MIN < 0 && parser.parse::<Char<'-'>>().is_some();
         while let Some(d) = parser.parse::<Digit>() {
-            value = value.checked_mul(10).and_then(|v| v.checked_add(d.value))?;
+            let d = i32::from(d.get());
+            value = value.checked_mul(10).and_then(|v| v.checked_add(d))?;
         }
         let end = parser.current_position();
-        if start == end {
-            None
-        } else {
-            Some(Self { start, value, end })
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        if NAMED {
-            Some(|| "an integer between 0 and 255".to_owned())
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Span)]
-struct I8 {
-    start: Position,
-    value: i8,
-    end: Position,
-}
-
-impl I8 {
-    const fn get(self) -> i8 {
-        self.value
-    }
-}
-
-impl Parse for I8 {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let start = parser.current_position();
-        let minus = parser.parse::<Char<'-'>>().is_some();
-        let mut value = i16::from(parser.parse::<U8<false>>()?.get());
-        let end = parser.current_position();
-
         if minus {
             value = -value;
         }
-        let value = i8::try_from(value).ok()?;
-        Some(Self { start, value, end })
+        if start == end || !(MIN..=MAX).contains(&value) {
+            None
+        } else {
+            Some(Self { start, value, end })
+        }
     }
 
     fn name() -> Option<fn() -> String> {
-        Some(|| "an integer between -127 and 126".to_owned())
+        Some(|| format!("an integer between {MIN} and {MAX}"))
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Span)]
-pub struct Digit {
-    start: Position,
-    value: u8,
-    end: Position,
-}
-
-impl Parse for Digit {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let start = parser.current_position();
-        let c = parser.read_char()?;
-        if matches!(c, '0'..='9') {
-            let end = parser.current_position();
-            let value = c.to_digit(10).expect("unreachable") as u8;
-            Some(Self { start, value, end })
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Span)]
-pub struct Octave(U8);
+#[derive(Debug, Clone, Copy, Span, Parse)]
+pub struct Octave(Int<2, 7>);
 
 impl Octave {
-    pub const MIN: Self = Self(U8::new(2));
-    pub const MAX: Self = Self(U8::new(7));
+    pub const MIN: Self = Self(Int::new(2));
+    pub const MAX: Self = Self(Int::new(7));
 
     pub const fn get(self) -> u8 {
-        self.0.get()
+        self.0.get() as u8
     }
 
     pub fn checked_add(self, n: u8) -> Option<Self> {
         if self.get().saturating_add(n) <= 7 {
-            Some(Self(U8::new(self.get() + n)))
+            Some(Self(Int::new(i32::from(self.get() + n))))
         } else {
             None
         }
@@ -468,115 +343,87 @@ impl Octave {
 
     pub fn checked_sub(self, n: u8) -> Option<Self> {
         if n <= self.get() - 2 {
-            Some(Self(U8::new(self.get() - n)))
+            Some(Self(Int::new(i32::from(self.get() - n))))
         } else {
             None
         }
-    }
-}
-
-impl Parse for Octave {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let n: U8 = parser.parse()?;
-        if 2 <= n.get() && n.get() <= 7 {
-            Some(Self(n))
-        } else {
-            None
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        Some(|| "an integer between 2 and 7".to_owned())
     }
 }
 
 impl Default for Octave {
     fn default() -> Self {
-        Self(U8::new(4))
+        Self(Int::new(4))
     }
 }
 
-#[derive(Debug, Clone, Copy, Span)]
-pub struct Quantize(U8);
+#[derive(Debug, Clone, Copy, Span, Parse)]
+pub struct Quantize(Int<1, 8>);
 
 impl Quantize {
     pub const fn get(self) -> u8 {
-        self.0.get()
-    }
-}
-
-impl Parse for Quantize {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let n: U8 = parser.parse()?;
-        if (1..=8).contains(&n.get()) {
-            Some(Self(n))
-        } else {
-            None
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        Some(|| "an integer between 1 and 8".to_owned())
+        self.0.get() as u8
     }
 }
 
 impl Default for Quantize {
     fn default() -> Self {
-        Self(U8::new(8))
+        Self(Int::new(8))
     }
 }
 
 #[derive(Debug, Default, Clone, Copy, Span, Parse)]
-pub struct QuantizeFrame(U8);
+pub struct QuantizeFrame(Int<0, 255>);
 
 impl QuantizeFrame {
     pub const fn get(self) -> u8 {
-        self.0.get()
+        self.0.get() as u8
     }
 }
 
 #[derive(Debug, Default, Clone, Copy, Span, Parse)]
-pub struct Detune(I8);
+pub struct Detune(Int<-128, 127>);
 
 impl Detune {
     pub const fn get(self) -> i8 {
-        self.0.get()
+        self.0.get() as i8
     }
 }
 
 #[derive(Debug, Clone, Copy, Span, Parse)]
-pub struct Tempo(NonZeroU8);
+pub struct Tempo(Int<1, 255>);
 
 impl Tempo {
     pub const fn get(self) -> u8 {
-        self.0.get()
+        self.0.get() as u8
     }
 }
 
 impl Default for Tempo {
     fn default() -> Self {
-        Self(NonZeroU8(U8::new(120)))
+        Self(Int::new(120))
     }
 }
 
-#[derive(Debug, Clone, Copy, Span)]
-pub struct Volume(U8);
+#[derive(Debug, Clone, Copy, Span, Parse)]
+pub struct Volume(Int<0, 15>);
 
 impl Volume {
     pub const fn get(self) -> u8 {
-        self.0.get()
+        self.0.get() as u8
     }
 
     pub fn checked_add(self, n: u8) -> Option<Self> {
         if self.get().saturating_add(n) <= 15 {
-            Some(Self(U8::new(self.get() + n)))
+            Some(Self(Int::new(i32::from(self.get() + n))))
         } else {
             None
         }
     }
 
     pub fn checked_sub(self, n: u8) -> Option<Self> {
-        self.get().checked_sub(n).map(|n| Self(U8::new(n)))
+        self.get()
+            .checked_sub(n)
+            .map(|n| Self(Int::new(i32::from(n))))
     }
 
     pub fn as_ratio(self) -> f32 {
@@ -584,24 +431,9 @@ impl Volume {
     }
 }
 
-impl Parse for Volume {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let n: U8 = parser.parse()?;
-        if n.get() > 15 {
-            None
-        } else {
-            Some(Self(n))
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        Some(|| "an integer between 0 and 15".to_owned())
-    }
-}
-
 impl Default for Volume {
     fn default() -> Self {
-        Self(U8::new(10))
+        Self(Int::new(10))
     }
 }
 
@@ -722,7 +554,7 @@ impl NthFrameItem for PitchEnvelope {
 
 #[derive(Debug, Clone, Span, Parse)]
 pub struct NoteEnvelope {
-    envelope: LoopList<I8>,
+    envelope: LoopList<Int<-128, 127>>,
 }
 
 impl NthFrameItem for NoteEnvelope {
@@ -732,7 +564,7 @@ impl NthFrameItem for NoteEnvelope {
         let mut v: i8 = 0;
         for i in 0..frame_index {
             if i < self.envelope.items.len() || self.envelope.loop_point.is_some() {
-                v = v.saturating_add(self.envelope.nth_frame_item(frame_index).get());
+                v = v.saturating_add(self.envelope.nth_frame_item(frame_index).get() as i8);
             }
         }
         v
@@ -764,41 +596,41 @@ impl NthFrameItem for Timbres {
 pub struct Vibrato {
     _open: Char<'{'>,
     _space0: CommentsOrWhitespaces,
-    delay: U8,
+    delay: Int<0, 255>,
     _space1: CommentsOrWhitespaces,
-    speed: NonZeroU8,
+    speed: Int<1, 255>,
     _space2: CommentsOrWhitespaces,
-    depth: U8,
+    depth: Int<0, 255>,
     _space3: CommentsOrWhitespaces,
     _close: Char<'}'>,
 }
 
 impl Vibrato {
     pub fn delay(&self) -> u8 {
-        self.delay.get()
+        self.delay.get() as u8
     }
 
     pub fn speed(&self) -> u8 {
-        self.speed.get()
+        self.speed.get() as u8
     }
 
     pub fn depth(&self) -> u8 {
-        self.depth.get()
+        self.depth.get() as u8
     }
 }
 
 #[derive(Debug, Clone, Copy, Span, Parse)]
 pub struct PitchSweep {
-    speed: U4,
+    speed: Int<0, 15>,
     _space0: CommentsOrWhitespaces,
     _comma: Char<','>,
     _space1: CommentsOrWhitespaces,
-    depth: U4,
+    depth: Int<0, 15>,
 }
 
 impl PitchSweep {
     pub fn speed(self) -> Option<u8> {
-        let v = self.speed.get();
+        let v = self.speed.get() as u8;
         if v < 8 {
             None
         } else {
@@ -807,19 +639,19 @@ impl PitchSweep {
     }
 
     pub fn depth(self) -> Option<i8> {
-        let v = self.depth.get();
+        let v = self.depth.get() as i8;
         if 8 < v {
-            Some(v as i8 - 8)
+            Some(v - 8)
         } else if 0 < v && v < 8 {
-            Some(-(v as i8))
+            Some(-v)
         } else {
             None
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Span)]
-pub struct OscillatorKind(U8);
+#[derive(Debug, Clone, Copy, Span, Parse)]
+pub struct OscillatorKind(Int<0, 2>);
 
 impl OscillatorKind {
     pub const PULSE_WAVE: u8 = 0;
@@ -827,21 +659,6 @@ impl OscillatorKind {
     pub const NOISE: u8 = 2;
 
     pub const fn get(self) -> u8 {
-        self.0.get()
-    }
-}
-
-impl Parse for OscillatorKind {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let n: U8 = parser.parse()?;
-        if n.get() < 3 {
-            Some(Self(n))
-        } else {
-            None
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        Some(|| "0 (pulse wave), 1 (triangle wave), or 2 (noise)".to_owned())
+        self.0.get() as u8
     }
 }

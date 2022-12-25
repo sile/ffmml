@@ -1,12 +1,12 @@
 use crate::{
     macros::MacroNumber,
     types::{
-        DefaultNoteDuration, Detune, Digit, NonZeroU4, NonZeroU8, Note, NoteDuration, Octave,
-        PitchSweep, Quantize, QuantizeFrame, Tempo, Timbre, Volume,
+        DefaultNoteDuration, Detune, Int, Note, NoteDuration, Octave, PitchSweep, Quantize,
+        QuantizeFrame, Tempo, Timbre, Volume,
     },
 };
 use textparse::{
-    components::{Char, Either, Not, Str},
+    components::{Char, Digit, Either, Not, Str},
     Parse, Span,
 };
 
@@ -127,13 +127,13 @@ impl VolumeEnvelopeCommand {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct VolumeUpCommand {
     _prefix: Str<'v', '+'>,
-    count: Either<NonZeroU4, Not<Digit>>,
+    count: Either<Int<1, 15>, Not<Digit>>,
 }
 
 impl VolumeUpCommand {
     pub fn count(&self) -> u8 {
         match self.count {
-            Either::A(x) => x.get(),
+            Either::A(x) => x.get() as u8,
             Either::B(_) => 1,
         }
     }
@@ -142,13 +142,13 @@ impl VolumeUpCommand {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct VolumeDownCommand {
     _prefix: Str<'v', '-'>,
-    count: Either<NonZeroU4, Not<Digit>>,
+    count: Either<Int<1, 15>, Not<Digit>>,
 }
 
 impl VolumeDownCommand {
     pub fn count(&self) -> u8 {
         match self.count {
-            Either::A(x) => x.get(),
+            Either::A(x) => x.get() as u8,
             Either::B(_) => 1,
         }
     }
@@ -283,12 +283,12 @@ pub struct RepeatStartCommand {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct RepeatEndCommand {
     _prefix: Char<']'>,
-    count: NonZeroU8,
+    count: Int<1, 255>,
 }
 
 impl RepeatEndCommand {
     pub fn count(self) -> usize {
-        usize::from(self.count.get())
+        self.count.get() as usize
     }
 }
 

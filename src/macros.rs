@@ -1,6 +1,6 @@
 use crate::{
     comment::CommentsOrWhitespaces,
-    types::{NoteEnvelope, PitchEnvelope, Timbres, Vibrato, VolumeEnvelope, U8},
+    types::{Int, NoteEnvelope, PitchEnvelope, Timbres, Vibrato, VolumeEnvelope},
 };
 use std::collections::BTreeMap;
 use textparse::{
@@ -39,23 +39,8 @@ impl Macros {
     }
 }
 
-#[derive(Debug, Clone, Copy, Span)]
-pub struct MacroNumber(U8);
-
-impl Parse for MacroNumber {
-    fn parse(parser: &mut Parser) -> Option<Self> {
-        let n: U8 = parser.parse()?;
-        if n.get() < 128 {
-            Some(Self(n))
-        } else {
-            None
-        }
-    }
-
-    fn name() -> Option<fn() -> String> {
-        Some(|| "an integer between 0 and 127".to_owned())
-    }
-}
+#[derive(Debug, Clone, Copy, Span, Parse)]
+pub struct MacroNumber(Int<0, 127>);
 
 impl PartialEq for MacroNumber {
     fn eq(&self, other: &Self) -> bool {
