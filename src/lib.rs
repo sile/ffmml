@@ -47,6 +47,13 @@
 //! player.take_last_error().map(|e| panic!("{e}"));
 //! ```
 //!
+//! To play the music defined by the above MML script, run the following commands:
+//! ```console
+//! $ cargo install ffmmlc
+//! $ cat examples/music01.mml | ffmmlc > music01.wav
+//! $ play music01.wav
+//! ```
+//!
 //! # References
 //!
 //! ### About MML
