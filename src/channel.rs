@@ -69,7 +69,7 @@ impl Channels {
             }
         }
         for (key, channel) in &mut self.0 {
-            channel.commands = Arc::new(channels.remove(&key).expect("unreachable"));
+            channel.commands = Arc::new(channels.remove(key).expect("unreachable"));
         }
         Some(Ok(()))
     }
@@ -79,7 +79,9 @@ impl Channels {
     }
 }
 
+/// Channel name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[allow(missing_docs)]
 pub enum ChannelName {
     A,
     B,
@@ -140,6 +142,38 @@ impl ChannelName {
             'Z' => ChannelName::Z,
             _ => return None,
         })
+    }
+
+    /// Returns the channel name as `char`.
+    pub const fn as_char(self) -> char {
+        match self {
+            ChannelName::A => 'A',
+            ChannelName::B => 'B',
+            ChannelName::C => 'C',
+            ChannelName::D => 'D',
+            ChannelName::E => 'E',
+            ChannelName::F => 'F',
+            ChannelName::G => 'G',
+            ChannelName::H => 'H',
+            ChannelName::I => 'I',
+            ChannelName::J => 'J',
+            ChannelName::K => 'K',
+            ChannelName::L => 'L',
+            ChannelName::M => 'M',
+            ChannelName::N => 'N',
+            ChannelName::O => 'O',
+            ChannelName::P => 'P',
+            ChannelName::Q => 'Q',
+            ChannelName::R => 'R',
+            ChannelName::S => 'S',
+            ChannelName::T => 'T',
+            ChannelName::U => 'U',
+            ChannelName::V => 'V',
+            ChannelName::W => 'W',
+            ChannelName::X => 'X',
+            ChannelName::Y => 'Y',
+            ChannelName::Z => 'Z',
+        }
     }
 }
 

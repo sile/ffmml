@@ -1,3 +1,6 @@
+//! TODO
+#![warn(missing_docs)]
+
 mod channel;
 mod clocks;
 mod commands;
@@ -10,5 +13,6 @@ mod player;
 mod traits;
 mod types;
 
+pub use self::channel::ChannelName;
 pub use self::music::{Music, ParseMusicError};
-pub use self::player::{MusicPlayer, PlayMusicError};
+pub use self::player::{ChannelState, MusicPlayer, PlayMusicError};

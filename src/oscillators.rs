@@ -59,6 +59,14 @@ impl Oscillator {
         }
     }
 
+    pub fn frequency(&self) -> f32 {
+        match self {
+            Oscillator::PulseWave(o) => o.frequency,
+            Oscillator::TriangleWave(o) => o.frequency,
+            Oscillator::Noise(o) => o.frequency,
+        }
+    }
+
     pub fn sweep_frequency(&mut self, depth: i8) {
         match self {
             Oscillator::PulseWave(o) => o.sweep_frequency(depth),
@@ -279,8 +287,8 @@ impl TriangleWave {
         self.frequency = register_to_frequency(register);
     }
 
-    fn set_timbre(&mut self, _timbre: Timbre) -> bool {
-        false
+    fn set_timbre(&mut self, timbre: Timbre) -> bool {
+        timbre.get() == 0
     }
 }
 

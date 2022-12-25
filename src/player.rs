@@ -13,8 +13,8 @@ use crate::{
     oscillators::{Oscillator, PitchLfo},
     traits::NthFrameItem,
     types::{
-        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, PitchSweep, Sample, Timbres, Volume,
-        VolumeEnvelope,
+        Detune, Note, NoteEnvelope, Octave, PitchEnvelope, PitchSweep, Sample, Timbre, Timbres,
+        Volume, VolumeEnvelope,
     },
     Music,
 };
@@ -42,10 +42,8 @@ impl MusicPlayer {
             .channels()
             .iter()
             .map(|(name, channel)| {
-                (
-                    name,
-                    ChannelPlayer::new(channel, macros.clone(), sample_rate),
-                )
+                let player = ChannelPlayer::new(channel, macros.clone(), sample_rate);
+                (name, player)
             })
             .collect();
         Self {
@@ -54,6 +52,19 @@ impl MusicPlayer {
         }
     }
 
+    /// Returns an iterator that iterates over all of the playing channels.
+    pub fn channels(&self) -> impl '_ + Iterator<Item = ChannelState> {
+        self.channels
+            .iter()
+            .map(|(name, player)| ChannelState::new(*name, player))
+    }
+
+    /// Returns `true` if the music completed, or aborted by an error, otherwise `false`.
+    pub fn is_eos(&self) -> bool {
+        self.channels.values().all(|c| c.eos)
+    }
+
+    /// Takes the last error if it exists.
     pub fn take_last_error(&mut self) -> Option<PlayMusicError> {
         for (name, channel) in &mut self.channels {
             if let Some(mut e) = channel.last_error.take() {
@@ -62,19 +73,6 @@ impl MusicPlayer {
             }
         }
         None
-    }
-
-    pub fn current_position(&self) -> Duration {
-        for c in self.channels.values() {
-            if !c.is_eos() {
-                return c.clocks.sample_clock().now();
-            }
-        }
-        Duration::from_secs(0)
-    }
-
-    pub fn is_eos(&self) -> bool {
-        self.channels.values().all(|c| c.is_eos())
     }
 }
 
@@ -185,12 +183,13 @@ struct ChannelPlayer {
     octave: Octave,
     detune: PitchEnvelope,
     volume: VolumeEnvelope,
-    timbre: Option<Timbres>,
+    timbre: Timbres,
     clocks: Clocks,
     arpeggio: Option<NoteEnvelope>,
     loop_point: Option<usize>,
     repeat_stack: Vec<Repeat>,
     note: Option<Note>,
+    command_span: std::ops::Range<usize>,
     pitch_lfo: Option<PitchLfo>,
     pitch_sweep: Option<PitchSweep>,
     last_error: Option<PlayMusicError>,
@@ -207,21 +206,18 @@ impl ChannelPlayer {
             octave: Octave::default(),
             detune: PitchEnvelope::constant(Detune::default()),
             volume: VolumeEnvelope::constant(Volume::default()),
-            timbre: None,
+            timbre: Timbres::constant(Timbre::default()),
             clocks: Clocks::new(sample_rate),
             loop_point: None,
             arpeggio: None,
             repeat_stack: Vec::new(),
             note: None,
+            command_span: std::ops::Range { start: 0, end: 0 },
             pitch_lfo: None,
             pitch_sweep: None,
             last_error: None,
             eos: false,
         }
-    }
-
-    fn is_eos(&self) -> bool {
-        self.eos
     }
 
     fn sample(&mut self) -> Sample {
@@ -232,19 +228,22 @@ impl ChannelPlayer {
         if self.clocks.sample_clock() >= self.clocks.quantize_clock() {
             self.oscillator.mute(true);
         }
-        let volume = self.volume.nth_frame_item(self.clocks.frame_index());
+        let volume = self.current_volume();
         sample * volume.as_ratio()
     }
 
+    fn current_timbre(&self) -> Timbre {
+        self.timbre.nth_frame_item(self.clocks.frame_index())
+    }
+
+    fn current_volume(&self) -> Volume {
+        self.volume.nth_frame_item(self.clocks.frame_index())
+    }
+
     fn handle_frame(&mut self) -> Result<(), PlayMusicError> {
-        if let Some(timbre) = self
-            .timbre
-            .as_ref()
-            .map(|t| t.nth_frame_item(self.clocks.frame_index()))
-        {
-            if !self.oscillator.set_timbre(timbre) {
-                return Err(PlayMusicError::new(timbre, "unsupported timbre value"));
-            }
+        let timbre = self.current_timbre();
+        if !self.oscillator.set_timbre(timbre) {
+            return Err(PlayMusicError::new(timbre, "unsupported timbre value"));
         }
         self.update_frequency()?;
         Ok(())
@@ -399,8 +398,7 @@ impl ChannelPlayer {
             ));
         }
         let v = self
-            .volume
-            .nth_frame_item(self.clocks.frame_index())
+            .current_volume()
             .checked_add(command.count())
             .ok_or_else(|| PlayMusicError::new(command, "volume overflow"))?;
         self.volume = VolumeEnvelope::constant(v);
@@ -418,8 +416,7 @@ impl ChannelPlayer {
             ));
         }
         let v = self
-            .volume
-            .nth_frame_item(self.clocks.frame_index())
+            .current_volume()
             .checked_sub(command.count())
             .ok_or_else(|| PlayMusicError::new(command, "volume underflow"))?;
         self.volume = VolumeEnvelope::constant(v);
@@ -501,19 +498,18 @@ impl ChannelPlayer {
     }
 
     fn handle_timbre_command(&mut self, command: TimbreCommand) -> Result<(), PlayMusicError> {
-        self.timbre = Some(Timbres::constant(command.timbre()));
+        self.timbre = Timbres::constant(command.timbre());
         Ok(())
     }
 
     fn handle_timbres_command(&mut self, command: TimbresCommand) -> Result<(), PlayMusicError> {
-        self.timbre = Some(
-            self.macros
-                .timbres
-                .get(&command.macro_number())
-                .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
-                .timbres()
-                .clone(),
-        );
+        self.timbre = self
+            .macros
+            .timbres
+            .get(&command.macro_number())
+            .ok_or_else(|| PlayMusicError::new(command, "undefined macro number"))?
+            .timbres()
+            .clone();
         Ok(())
     }
 
@@ -679,6 +675,8 @@ impl Iterator for ChannelPlayer {
             };
             self.command_index += 1;
 
+            self.command_span.start = command.start_position().get();
+            self.command_span.end = command.end_position().get();
             let result = match command {
                 Command::Note(c) => self.handle_note_command(c),
                 Command::Arpeggio(c) => self.handle_arpeggio_command(c),
@@ -730,5 +728,53 @@ impl Repeat {
             start_index,
             count: 1,
         }
+    }
+}
+
+/// State of a playing channel.
+#[derive(Debug)]
+pub struct ChannelState<'a> {
+    name: ChannelName,
+    player: &'a ChannelPlayer,
+}
+
+impl<'a> ChannelState<'a> {
+    fn new(name: ChannelName, player: &'a ChannelPlayer) -> Self {
+        Self { name, player }
+    }
+
+    /// Name of this channel
+    pub fn channel_name(&self) -> ChannelName {
+        self.name
+    }
+
+    /// Returns `true` if playing the channel completed, or aborted by an error, otherwise `false`.
+    pub fn is_eos(&self) -> bool {
+        self.player.eos
+    }
+
+    /// Returns the current playing position.
+    pub fn position(&self) -> Duration {
+        self.player.clocks.sample_clock().now()
+    }
+
+    /// Returns the current timbre.
+    pub fn timbre(&self) -> u8 {
+        self.player.current_timbre().get()
+    }
+
+    /// Returns the current volume.
+    pub fn volume(&self) -> u8 {
+        self.player.current_volume().get()
+    }
+
+    /// Returns the current frequency.
+    pub fn frequency(&self) -> f32 {
+        self.player.oscillator.frequency()
+    }
+
+    /// Returns the current command (start and end positions in the MML script).
+    pub fn command(&self) -> std::ops::Range<usize> {
+        self.player.command_span.clone()
     }
 }
