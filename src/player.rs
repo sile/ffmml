@@ -32,7 +32,6 @@ use textparse::{Position, Span};
 #[derive(Debug)]
 pub struct MusicPlayer {
     channels: BTreeMap<ChannelName, ChannelPlayer>,
-    last_error: Option<PlayMusicError>,
 }
 
 impl MusicPlayer {
@@ -46,10 +45,7 @@ impl MusicPlayer {
                 (name, player)
             })
             .collect();
-        Self {
-            channels,
-            last_error: None,
-        }
+        Self { channels }
     }
 
     /// Returns an iterator that iterates over all of the playing channels.
@@ -88,22 +84,12 @@ impl Iterator for MusicPlayer {
     type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.last_error.is_some() {
-            return None;
-        }
-
         let n = self.channels.len() as f32;
         let mut sample = None;
         for x in self.channels.values_mut().flat_map(|c| c.next()) {
             sample = Some(sample.unwrap_or(Sample::ZERO) + x / n);
         }
-
-        if let Some(e) = self.take_last_error() {
-            self.last_error = Some(e);
-            None
-        } else {
-            sample
-        }
+        sample
     }
 }
 
@@ -664,8 +650,7 @@ impl Iterator for ChannelPlayer {
             if self.clocks.tick_frame_clock_if_need() {
                 self.last_error = self.handle_frame().err();
                 if self.last_error.is_some() {
-                    self.eos = true;
-                    return None;
+                    break;
                 }
             }
 
@@ -678,8 +663,7 @@ impl Iterator for ChannelPlayer {
                     self.command_index = i;
                     continue;
                 }
-                self.eos = true;
-                return None;
+                break;
             };
             self.command_index += 1;
 
@@ -720,6 +704,8 @@ impl Iterator for ChannelPlayer {
                 self.last_error = Some(e);
             }
         }
+
+        self.eos = true;
         None
     }
 }

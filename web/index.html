@@ -18,7 +18,7 @@
     <div>
       <textarea id="errorMessageArea"
                 style="color:red; font-weight:bold; border:none; resize:none"
-                rows="6" cols="80">
+                readonly rows="6" cols="80">
       </textarea>
     </div>
 
@@ -59,6 +59,10 @@
                   }
               } catch (e) {
                   console.warn(e);
+
+                  const errorMessage = document.getElementById("errorMessageArea");
+                  const error = JSON.parse(e.message);
+                  errorMessage.value = "ERROR: " + error.message;
               }
           }
       });
