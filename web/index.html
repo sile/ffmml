@@ -16,7 +16,7 @@
     <div>
       <input value="Play Music" type="button" onclick="playAudio()">
       &nbsp;&nbsp;
-      <input value="Update URL" type="button">
+      <input value="Update URL" type="button" onclick="updateUrl()">
       &nbsp;&nbsp;
       <input value="Download .wav" type="button">
     </div>
@@ -30,6 +30,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/pagurus@0.6.0/dist/pagurus.min.js"></script>
     <script>
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mml')) {
+          document.getElementById('mml').value =  params.get('mml');
+      }
+
       var system = undefined;
       var game = undefined;
 
@@ -48,6 +53,13 @@
               const error = JSON.parse(e.message);
               errorMessage.value = "ERROR: " + error.message;
           }
+      }
+
+      function updateUrl() {
+          const mml = document.getElementById("mml").value;
+          const params = new URLSearchParams();
+          params.set('mml', mml);
+          window.location.search = params.toString();
       }
 
       Pagurus.Game.load("ffmml.wasm").then(async gameObject => {
