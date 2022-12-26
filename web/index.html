@@ -1,4 +1,4 @@
-<html>
+g<html>
   <head>
     <meta charset="utf-8">
     <title>FFMML Web Player</title>
@@ -18,7 +18,7 @@
       &nbsp;&nbsp;
       <input value="Update URL" type="button" onclick="updateUrl()">
       &nbsp;&nbsp;
-      <input value="Download .wav" type="button">
+      <input value="Download .wav" type="button" onclick="downloadWav()">
     </div>
     <br />
     <div>
@@ -60,6 +60,45 @@
           const params = new URLSearchParams();
           params.set('mml', mml);
           window.location.search = params.toString();
+      }
+
+      function downloadWav() {
+          const mml = document.getElementById("mml").value;
+          const mmlBytes = new TextEncoder().encode(mml);
+
+          const errorMessage = document.getElementById("errorMessageArea");
+          errorMessage.value = "";
+
+          try {
+              game.command(system, "setScript", mmlBytes);
+          } catch (e) {
+              console.warn(e);
+              const error = JSON.parse(e.message);
+              errorMessage.value = "ERROR: " + error.message;
+          }
+
+          const data = game.query(system, "exportWav");
+          const blob = new Blob([data], {type: 'audio/x-wav'});
+
+          const element = document.createElement("a");
+          element.download = `music-${now()}.wav`;
+          element.href = URL.createObjectURL(blob);
+
+          element.click();
+      }
+
+      function now() {
+          return new Intl.DateTimeFormat(
+              [],
+              {
+                  year:   'numeric',
+                  month:  '2-digit',
+                  day:    '2-digit',
+                  hour:   '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+              }
+          ).format(new Date()).replaceAll(/[:/]/g, '').replace(' ', '_');
       }
 
       Pagurus.Game.load("ffmml.wasm").then(async gameObject => {
