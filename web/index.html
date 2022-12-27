@@ -22,7 +22,7 @@
     <br />
     <div>
       <textarea id="errorMessageArea"
-                style="color:red; font-weight:bold; border:none; resize:none"
+                style="color:red; font-weight:bold; border:none; resize:none; display:none"
                 readonly rows="6" cols="80">
       </textarea>
     </div>
@@ -43,35 +43,39 @@
       }
 
       function playAudio() {
-          const errorMessage = document.getElementById("errorMessageArea");
-          errorMessage.value = "";
           try {
               parseScript();
               game.command(system, "playAudio", new Uint8Array(0));
+              clearErrorMessage();
           } catch (e) {
               console.warn(e);
-              errorMessage.value = "ERROR: " + JSON.parse(e.message).message;
+              setErrorMessage(JSON.parse(e.message).message);
           }
       }
 
       function updateUrl() {
-          const mml = document.getElementById("mml").value;
-          const params = new URLSearchParams();
-          params.set('mml', mml);
-          window.location.search = params.toString();
+          try {
+              parseScript();
+              const mml = document.getElementById("mml").value;
+              const params = new URLSearchParams();
+              params.set('mml', mml);
+              window.location.search = params.toString();
+              clearErrorMessage();
+          } catch (e) {
+              setErrorMessage(JSON.parse(e.message).message);
+          }
       }
 
       function downloadWav() {
-          const errorMessage = document.getElementById("errorMessageArea");
-          errorMessage.value = "";
           let blob;
           try {
               parseScript();
               const data = game.query(system, "exportWav");
               blob = new Blob([data], {type: 'audio/x-wav'});
+              clearErrorMessage();
           } catch (e) {
               console.warn(e);
-              errorMessage.value = "ERROR: " + JSON.parse(e.message).message;
+              setErrorMessage(JSON.parse(e.message).message);
               return;
           }
 
@@ -79,6 +83,18 @@
           element.download = `music-${now()}.wav`;
           element.href = URL.createObjectURL(blob);
           element.click();
+      }
+
+      function clearErrorMessage() {
+          const errorMessage = document.getElementById("errorMessageArea");
+          errorMessage.style.display = "none";
+          errorMessage.value = "";
+      }
+
+      function setErrorMessage(msg) {
+          const errorMessage = document.getElementById("errorMessageArea");
+          errorMessage.style.display = "block";
+          errorMessage.value = "ERROR: " + msg;
       }
 
       function now() {
@@ -108,9 +124,7 @@
                   }
               } catch (e) {
                   console.warn(e);
-
-                  const errorMessage = document.getElementById("errorMessageArea");
-                  errorMessage.value = "ERROR: " + JSON.parse(e.message).message;
+                  setErrorMessage(JSON.parse(e.message).message);
               }
           }
       });
