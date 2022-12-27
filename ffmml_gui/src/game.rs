@@ -93,7 +93,7 @@ impl<S: System + 'static> Game<S> for FfmmlGame {
         match name {
             "exportWav" => {
                 let music = self.music.as_ref().or_fail()?;
-                let wav = ffmml::wav::Wav::new(&music).or_fail()?;
+                let wav = ffmml::wav::Wav::new(music).or_fail()?;
                 let mut buf = Vec::new();
                 wav.to_writer(&mut buf).or_fail()?;
                 Ok(buf)
