@@ -1,4 +1,4 @@
-g<html>
+<html>
   <head>
     <meta charset="utf-8">
     <title>FFMML Web Player</title>
@@ -9,7 +9,6 @@ g<html>
     <a href="https://github.com/sile/ffmml">FFMML GitHub Repository</a>
     <br /><br />
     <div>
-      <canvas id="canvas" hidden="hidden"></canvas>
       <textarea id="mml" rows="20" cols="80"></textarea>
     </div>
     <br />
@@ -28,7 +27,7 @@ g<html>
       </textarea>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/pagurus@0.6.0/dist/pagurus.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pagurus@0.6.1/dist/pagurus.min.js"></script>
     <script>
       const params = new URLSearchParams(window.location.search);
       if (params.get('mml')) {
@@ -103,9 +102,7 @@ g<html>
 
       Pagurus.Game.load("ffmml.wasm").then(async gameObject => {
           game = gameObject;
-
-          const canvas = document.getElementById("canvas");
-          system = await Pagurus.System.create(game.memory, canvas);
+          system = await Pagurus.System.create(game.memory);
 
           game.initialize(system);
           while (true) {
