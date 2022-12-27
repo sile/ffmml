@@ -6,22 +6,31 @@ use textparse::{
 
 use crate::{comment::CommentsOrWhitespaces, traits::NthFrameItem};
 
+/// Audio sample.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Sample(f32);
 
 impl Sample {
-    pub const MAX: Self = Sample(1.0);
+    /// Minimum value (-1.0).
     pub const MIN: Self = Sample(-1.0);
+
+    /// Maximum value (1.0).
+    pub const MAX: Self = Sample(1.0);
+
+    /// Zero value (0.0).
     pub const ZERO: Self = Sample(0.0);
 
+    /// Makes a new [`Sample`] instance.
     pub const fn new(v: f32) -> Self {
         Self(v)
     }
 
+    /// Returns the value of this audio sample.
     pub fn get(self) -> f32 {
         self.0.clamp(Self::MIN.0, Self::MAX.0)
     }
 
+    /// Converts this audio sample to an i16 value.
     pub fn to_i16(self) -> i16 {
         let v = self.get();
         if v < 0.0 {

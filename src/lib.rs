@@ -87,3 +87,4 @@ mod types;
 pub use self::channel::ChannelName;
 pub use self::music::{Music, ParseMusicError};
 pub use self::player::{ChannelState, MusicPlayer, PlayMusicError};
+pub use self::types::Sample;
