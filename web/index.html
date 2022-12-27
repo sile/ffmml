@@ -37,20 +37,20 @@
       var system = undefined;
       var game = undefined;
 
-      function playAudio() {
+      function parseScript() {
           const mml = document.getElementById("mml").value;
-          const mmlBytes = new TextEncoder().encode(mml);
+          game.command(system, "parseScript", new TextEncoder().encode(mml));
+      }
 
+      function playAudio() {
           const errorMessage = document.getElementById("errorMessageArea");
           errorMessage.value = "";
-
           try {
-              game.command(system, "playAudio", mmlBytes);
+              parseScript();
+              game.command(system, "playAudio", new Uint8Array(0));
           } catch (e) {
               console.warn(e);
-
-              const error = JSON.parse(e.message);
-              errorMessage.value = "ERROR: " + error.message;
+              errorMessage.value = "ERROR: " + JSON.parse(e.message).message;
           }
       }
 
@@ -62,27 +62,22 @@
       }
 
       function downloadWav() {
-          const mml = document.getElementById("mml").value;
-          const mmlBytes = new TextEncoder().encode(mml);
-
           const errorMessage = document.getElementById("errorMessageArea");
           errorMessage.value = "";
-
+          let blob;
           try {
-              game.command(system, "setScript", mmlBytes);
+              parseScript();
+              const data = game.query(system, "exportWav");
+              blob = new Blob([data], {type: 'audio/x-wav'});
           } catch (e) {
               console.warn(e);
-              const error = JSON.parse(e.message);
-              errorMessage.value = "ERROR: " + error.message;
+              errorMessage.value = "ERROR: " + JSON.parse(e.message).message;
+              return;
           }
-
-          const data = game.query(system, "exportWav");
-          const blob = new Blob([data], {type: 'audio/x-wav'});
 
           const element = document.createElement("a");
           element.download = `music-${now()}.wav`;
           element.href = URL.createObjectURL(blob);
-
           element.click();
       }
 
@@ -115,8 +110,7 @@
                   console.warn(e);
 
                   const errorMessage = document.getElementById("errorMessageArea");
-                  const error = JSON.parse(e.message);
-                  errorMessage.value = "ERROR: " + error.message;
+                  errorMessage.value = "ERROR: " + JSON.parse(e.message).message;
               }
           }
       });

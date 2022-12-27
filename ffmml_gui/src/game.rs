@@ -1,4 +1,4 @@
-use ffmml::MusicPlayer;
+use ffmml::{Music, MusicPlayer};
 use pagurus::{
     audio::AudioData,
     event::Event,
@@ -14,8 +14,9 @@ pagurus::export_wasm_functions!(FfmmlGame);
 #[derive(Debug, Default)]
 pub struct FfmmlGame {
     audio_data: AudioData,
-    player: Option<MusicPlayer>,
     mml: String,
+    music: Option<Music>,
+    player: Option<MusicPlayer>,
     play_start_time: Duration,
     timeout: Option<TimeoutId>,
 }
@@ -66,20 +67,20 @@ impl<S: System + 'static> Game<S> for FfmmlGame {
 
     fn command(&mut self, system: &mut S, name: &str, data: &[u8]) -> Result<()> {
         match name {
+            "parseScript" => {
+                self.mml = std::str::from_utf8(data).or_fail()?.to_owned();
+                self.music = Some(
+                    self.mml
+                        .parse::<Music>()
+                        .map_err(|e| e.file_path("TEXTAREA"))
+                        .or_fail()?,
+                );
+            }
             "playAudio" => {
-                let mml = std::str::from_utf8(data).or_fail()?;
-                let music = mml
-                    .parse::<ffmml::Music>()
-                    .map_err(|e| e.file_path("TEXTAREA"))
-                    .or_fail()?;
-                self.mml = mml.to_owned();
+                let music = self.music.as_ref().or_fail()?;
                 self.player = Some(music.play(SAMPLE_RATE));
                 self.play_start_time = system.clock_game_time();
                 self.play_audio_data(system).or_fail()?;
-            }
-            "setScript" => {
-                let mml = std::str::from_utf8(data).or_fail()?;
-                self.mml = mml.to_owned();
             }
             _ => {
                 return Err(Failure::new().message(format!("unknown command: {name:?}")));
@@ -91,11 +92,7 @@ impl<S: System + 'static> Game<S> for FfmmlGame {
     fn query(&mut self, _system: &mut S, name: &str) -> Result<Vec<u8>> {
         match name {
             "exportWav" => {
-                let music = self
-                    .mml
-                    .parse::<ffmml::Music>()
-                    .map_err(|e| e.file_path("TEXTAREA"))
-                    .or_fail()?;
+                let music = self.music.as_ref().or_fail()?;
                 let wav = ffmml::wav::Wav::new(&music).or_fail()?;
                 let mut buf = Vec::new();
                 wav.to_writer(&mut buf).or_fail()?;
