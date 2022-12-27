@@ -6,7 +6,9 @@ ffmml
 [![Actions Status](https://github.com/sile/ffmml/workflows/CI/badge.svg)](https://github.com/sile/ffmml/actions)
 ![License](https://img.shields.io/crates/l/ffmml)
 
-Parser and player of **F**amicon (a.k.a. NES) **F**lavored **M**usic **M**acro **L**anguage (FFMML).
+Parser and player of **F**amicon **F**lavored **M**usic **M**acro **L**anguage (FFMML).
+
+Famicon is also known as NES (Nintendo Entertainment System).
 
 🎵 [Web Player][demo]
 
