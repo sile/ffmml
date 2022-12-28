@@ -18,6 +18,8 @@
       <input value="Update URL" type="button" onclick="updateUrl()">
       &nbsp;&nbsp;
       <input value="Download .wav" type="button" onclick="downloadWav()">
+      &nbsp;&nbsp;
+      <input value="Share" type="button" onclick="share()">
     </div>
     <br />
     <div>
@@ -61,6 +63,25 @@
               params.set('mml', mml);
               window.location.search = params.toString();
               clearErrorMessage();
+          } catch (e) {
+              setErrorMessage(JSON.parse(e.message).message);
+          }
+      }
+
+      function share() {
+          try {
+              parseScript();
+
+              const mml = document.getElementById("mml").value;
+              const params = new URLSearchParams();
+              params.set('mml', mml);
+              const url = new URL(window.location.href);
+              url.params = params.toString();
+              navigator.share({
+                  title: `mml-${now()}`,
+                  text: mml,
+                  url,
+              });
           } catch (e) {
               setErrorMessage(JSON.parse(e.message).message);
           }
