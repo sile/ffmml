@@ -30,6 +30,7 @@ jobs:
           cp target/wasm32-unknown-unknown/release/ffmml_gui.wasm _site/ffmml.wasm
           cp web/index.html _site/
           cp web/primer.css _site/
+          cp web/*.png _site/
           sed -e "s/CACHE_NAME = .*;/CACHE_NAME = 'ffmml-$(git show --format='%h' --no-patch)';/" web/service-worker.js > _site/service-worker.js
       - name: Upload GitHub Pages files
         uses: actions/upload-pages-artifact@v1
