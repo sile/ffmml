@@ -79,7 +79,7 @@
               url.params = params.toString();
               navigator.share({
                   title: `mml-${now()}`,
-                  text: mml,
+                  text: "```\n" + mml.trim() + "\n```",
                   url,
               });
           } catch (e) {
