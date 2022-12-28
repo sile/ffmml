@@ -77,13 +77,24 @@
               params.set('mml', mml);
               const url = new URL(window.location.href);
               url.params = params.toString();
+              console.log("```\n" + mml.trim() + "\n```");
               navigator.share({
-                  title: `mml-${now()}`,
-                  text: "```\n" + mml.trim() + "\n```",
+                  title: getTitle(),
+                  text: "```\n" + mml.trim() + "\n```\n",
                   url,
               });
           } catch (e) {
               setErrorMessage(JSON.parse(e.message).message);
+          }
+      }
+
+      function getTitle() {
+          const titleBytes = game.query(system, "title");
+          console.log(titleBytes);
+          if (titleBytes.length == 0) {
+              return `mml-${now()}`;
+          } else {
+              return new TextDecoder('utf8').decode(titleBytes);
           }
       }
 
@@ -101,7 +112,7 @@
           }
 
           const element = document.createElement("a");
-          element.download = `music-${now()}.wav`;
+          element.download = `${getTitle()}.wav`;
           element.href = URL.createObjectURL(blob);
           element.click();
       }

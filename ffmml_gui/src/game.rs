@@ -98,6 +98,15 @@ impl<S: System + 'static> Game<S> for FfmmlGame {
                 wav.to_writer(&mut buf).or_fail()?;
                 Ok(buf)
             }
+            "title" => {
+                let title = self
+                    .music
+                    .as_ref()
+                    .and_then(|m| m.title())
+                    .unwrap_or("")
+                    .to_owned();
+                Ok(title.into_bytes())
+            }
             _ => Err(Failure::new().message(format!("unknown query: {name:?}"))),
         }
     }
