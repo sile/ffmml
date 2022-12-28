@@ -90,7 +90,6 @@
 
       function getTitle() {
           const titleBytes = game.query(system, "title");
-          console.log(titleBytes);
           if (titleBytes.length == 0) {
               return `mml-${now()}`;
           } else {
