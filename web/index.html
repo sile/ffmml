@@ -1,32 +1,36 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <link href="./primer.css" rel="stylesheet" />
     <title>FFMML Web Player</title>
   </head>
   <body>
-    <h1>FFMML Web Player</h1>
-    <a href="https://www.nesdev.org/mck_guide_v1.0.txt">MML (MCK) Guide</a> |
-    <a href="https://github.com/sile/ffmml">FFMML GitHub Repository</a>
-    <br /><br />
-    <div>
-      <textarea id="mml" rows="20" cols="80"></textarea>
-    </div>
-    <br />
-    <div>
-      <input value="Play Music" type="button" onclick="playAudio()">
-      &nbsp;&nbsp;
-      <input value="Update URL" type="button" onclick="updateUrl()">
-      &nbsp;&nbsp;
-      <input value="Download .wav" type="button" onclick="downloadWav()">
-      &nbsp;&nbsp;
-      <input value="Share" type="button" onclick="share()">
-    </div>
-    <br />
-    <div>
-      <textarea id="errorMessageArea"
-                style="color:red; font-weight:bold; border:none; resize:none; display:none"
-                readonly rows="6" cols="80">
-      </textarea>
+    <div class="m-3">
+      <h1>FFMML Web Player</h1>
+      <a href="https://www.nesdev.org/mck_guide_v1.0.txt">MML (MCK) Guide</a> |
+      <a href="https://github.com/sile/ffmml">FFMML GitHub Repository</a>
+      <br /><br />
+      <div>
+        <textarea id="mml" rows="20" cols="60" class="text-mono"></textarea>
+      </div>
+      <br />
+      <div>
+        <input value="Play Music" type="button" onclick="playAudio()" class="btn">
+        &nbsp;&nbsp;
+        <input value="Update URL" type="button" onclick="updateUrl()" class="btn">
+        &nbsp;&nbsp;
+        <input value="Download .wav" type="button" onclick="downloadWav()" class="btn">
+        &nbsp;&nbsp;
+      <input value="Share" type="button" onclick="share()" class="btn">
+      </div>
+      <br />
+      <div>
+        <textarea id="errorMessageArea"
+                  class="text-mono"
+                  style="color:red; font-weight:bold; border:none; resize:none; display:none"
+                  readonly rows="6" cols="80">
+        </textarea>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/pagurus@0.6.1/dist/pagurus.min.js"></script>
