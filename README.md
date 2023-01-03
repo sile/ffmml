@@ -12,6 +12,8 @@ Famicon is also known as NES (Nintendo Entertainment System).
 
 🎵 [Web Player][demo]
 
+:memo: [VSCode Extension](https://marketplace.visualstudio.com/items?itemName=sile.ffmml)
+
 The language specification of FFMML is based on [MCK].
 But there are (known) differences between FFMML and MCK as follows:
 
