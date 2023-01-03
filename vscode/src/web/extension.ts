@@ -13,12 +13,6 @@ export function activate(context: vscode.ExtensionContext) {
       provider
     )
   );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("ffmml.playMusic", () => {
-      provider.playMusic();
-    })
-  );
 }
 
 // This method is called when your extension is deactivated
@@ -32,7 +26,7 @@ class PlayerViewProvider implements vscode.WebviewViewProvider {
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
-    context: vscode.WebviewViewResolveContext,
+    _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ) {
     this._view = webviewView;
@@ -42,57 +36,71 @@ class PlayerViewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this._extensionUri],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
-    webviewView.webview.onDidReceiveMessage((data) => {
-      // switch (data.type) {
-      //   case "colorSelected": {
-      //     vscode.window.activeTextEditor?.insertSnippet(
-      //       new vscode.SnippetString(`#${data.value}`)
-      //     );
-      //     break;
-      //   }
-      // }
+    webviewView.webview.onDidReceiveMessage((msg) => {
+      switch (msg.type) {
+        case "getWasmUri": {
+          const wasmUri = webviewView.webview.asWebviewUri(
+            vscode.Uri.joinPath(this._extensionUri, "media", "ffmml.wasm")
+          );
+          webviewView.webview.postMessage({
+            type: "getWasmUriResponse",
+            value: wasmUri.toString(),
+          });
+          break;
+        }
+        case "getMmlScript": {
+          const editor = vscode.window.activeTextEditor;
+          if (!editor) {
+            webviewView.webview.postMessage({
+              type: "getMmlScriptResponse",
+              value: undefined,
+            });
+          } else {
+            webviewView.webview.postMessage({
+              type: "getMmlScriptResponse",
+              value: editor.document.getText(),
+            });
+          }
+          break;
+        }
+        case "error":
+          const errorMessageLines = JSON.parse(msg.error).message.split("\n");
+          const errorMessage = `${
+            errorMessageLines[0]
+          } (at ${errorMessageLines[1].replace(/.*TEXTAREA:/, "")})`;
+          vscode.window.showErrorMessage(errorMessage);
+          break;
+      }
     });
-  }
-
-  public playMusic() {
-    if (this._view) {
-      this._view.show(true);
-      this._view.webview.postMessage({ type: "playMusic" });
-    }
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    const scriptUri = webview.asWebviewUri(
+    const scriptPagurusUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, "media", "pagurus.js")
+    );
+    const scriptMainUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, "media", "main.js")
     );
-
     const styleVSCodeUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, "media", "vscode.css")
     );
-
     const nonce = getNonce();
 
     return `<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
-<!--
-				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}' 'wasm-unsafe-eval' blob:; connect-src ${webview.cspSource};">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
--->
 				<link href="${styleVSCodeUri}" rel="stylesheet">
 
 				<title>FFMML Player</title>
 			</head>
 			<body>
-				<ul class="color-list">
-				</ul>
-				<button class="play-music-button">Play Music</button>
-<!--
-				<script nonce="${nonce}" src="${scriptUri}"></script>
--->
+        <button id="play-music-button">Play Music</button>
+				<script nonce="${nonce}" src="${scriptPagurusUri}"></script>
+        <script nonce="${nonce}" src="${scriptMainUri}"></script>
 			</body>
 			</html>`;
   }
