@@ -15,16 +15,22 @@
   "activationEvents": [],
   "browser": "./dist/web/extension.js",
   "contributes": {
-    "customEditors": [
+    "views": {
+      "explorer": [
+        {
+          "type": "webview",
+          "id": "ffmml.playerView",
+          "name": "FFMML Player",
+          "when": "resourceExtname == .mml"
+        }
+      ]
+    },
+    "commands": [
       {
-        "viewType": "ffmml.mml",
-        "displayName": "FFMML",
-        "selector": [
-          {
-            "filenamePattern": "*.mml"
-          }
-        ],
-        "priority": "default"
+        "command": "ffmml.playMusic",
+        "category": "FFMML",
+        "title": "Play Music",
+        "icon": "$(play-circle)"
       }
     ]
   },
