@@ -1,7 +1,9 @@
 {
   "name": "ffmml",
   "displayName": "FFMML",
-  "description": "Syntax highlight and music player for FFMML (Famicon Flavored Music Macro Language)",
+  "publisher": "sile",
+  "license": "MIT",
+  "description": "Music player for FFMML (Famicon Flavored Music Macro Language)",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.74.0"
@@ -26,6 +28,15 @@
       ]
     }
   },
+  "bugs": {
+    "url": "https://github.com/sile/ffmml/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sile/ffmml.git"
+  },
+  "homepage": "https://github.com/sile/ffmml/blob/main/README.md",
+  "icon": "media/icon.png",
   "scripts": {
     "test": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=dist/web/test/suite/index.js",
     "pretest": "npm run compile-web",
