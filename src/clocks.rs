@@ -94,7 +94,7 @@ impl Clocks {
             .get()
             .unwrap_or_else(|| self.default_note_duration.get());
 
-        let numer = 60 /* a minute */ * 4 /* four-four- time*/;
+        let numer = 60 /* a minute */ * 4 /* four-four-time*/;
         let mut denom = u64::from(self.tempo.get()) * u64::from(duration);
         for _ in 0..=std::cmp::min(note_duration.dots(), 16) {
             self.note_clock.tick(numer, denom);

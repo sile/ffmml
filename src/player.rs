@@ -320,6 +320,7 @@ impl ChannelPlayer {
     fn handle_wait_command(&mut self, command: WaitCommand) -> Result<(), PlayMusicError> {
         self.update_frequency()?;
         self.clocks.tick_note_clock(command.note_duration());
+        self.oscillator.mute(self.note.is_none());
         Ok(())
     }
 
@@ -333,8 +334,8 @@ impl ChannelPlayer {
                 "'^' must follow a note command",
             ));
         }
-
         self.clocks.tick_note_clock(command.note_duration());
+        self.oscillator.mute(self.note.is_none());
         Ok(())
     }
 
@@ -362,6 +363,7 @@ impl ChannelPlayer {
         }
 
         self.clocks.tick_note_clock(after.note_duration());
+        self.oscillator.mute(self.note.is_none());
         Ok(())
     }
 
