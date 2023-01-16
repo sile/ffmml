@@ -68,7 +68,7 @@ impl Channel {
 impl Parse for Channel {
     fn parse(parser: &mut Parser) -> Option<Self> {
         let start = parser.current_position();
-        let _: Str<'#', 'C', 'A', 'N', 'N', 'E', 'L'> = parser.parse()?;
+        let _: (Char<'#'>, Str<'C', 'H', 'A', 'N', 'N', 'E', 'L'>) = parser.parse()?;
         let _: NonEmpty<While<SpaceOrTabOrComment>> = parser.parse()?;
         let channel_names = parser.parse()?;
         let _: NonEmpty<While<SpaceOrTabOrComment>> = parser.parse()?;
