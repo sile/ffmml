@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use textparse::{
-    components::{Char, Digit, Either, Not, Str},
+    components::{Char, Digit, Either, NonEmpty, Not, Str},
     Parse, Span,
 };
 
@@ -336,12 +336,12 @@ impl WaitCommand {
 #[derive(Debug, Clone, Span, Parse)]
 pub struct TieCommand {
     _prefix: Char<'^'>,
-    duration: NoteDuration,
+    duration: NonEmpty<NoteDuration>,
 }
 
 impl TieCommand {
     pub fn note_duration(&self) -> NoteDuration {
-        self.duration
+        *self.duration.get()
     }
 }
 
