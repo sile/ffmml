@@ -8,7 +8,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 [Unreleased]
 ------------
 
-[0.0.4] - 2023-01-17
+[0.1.2] - 2023-01-17
 --------------------
 
 ### Fixed
