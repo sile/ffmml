@@ -6,4 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
-- Initial release
+[0.0.3] - 2023-01-17
+--------------------
+
+### Fixed
+
+- Fix tie and slur commands handling bug
