@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+[0.0.4] - 2023-01-17
+--------------------
+
+### Fixed
+
+- Fix typo: s/#CANNEL/#CHANNEL/
+
 [0.0.3] - 2023-01-17
 --------------------
 
