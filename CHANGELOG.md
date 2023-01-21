@@ -10,6 +10,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
+- Fix block comment handling bug
 - Allow empty channels such as `A` in `A B cde`
 - Fix typo: s/#CANNEL/#CHANNEL/
 
