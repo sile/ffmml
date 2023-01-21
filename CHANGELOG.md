@@ -10,6 +10,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
+- Allow empty channels such as `A` in `A B cde`
 - Fix typo: s/#CANNEL/#CHANNEL/
 
 [0.1.2] - 2023-01-17

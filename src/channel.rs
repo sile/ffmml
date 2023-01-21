@@ -50,7 +50,7 @@ impl Channels {
             let _: Space = parser.parse()?;
             let _: CommentsOrWhitespaces = parser.parse()?;
 
-            let mut has_space = false;
+            let mut has_space = true;
             while let Some(command) = parser.parse::<Command>() {
                 for name in &names {
                     channels
