@@ -52,7 +52,7 @@ impl Eq for MacroNumber {}
 
 impl PartialOrd for MacroNumber {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.get().partial_cmp(&other.0.get())
+        Some(self.cmp(other))
     }
 }
 
