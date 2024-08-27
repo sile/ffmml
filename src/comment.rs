@@ -16,7 +16,7 @@ pub type CommentsOrWhitespaces = While<Either<Whitespace, Comment>>;
 #[derive(Debug, Clone, Span, Parse)]
 pub struct BlockComment(
     (Char<'/', false>, Char<'*'>),
-    While<(Not<Str<'*', '/'>>, AnyChar)>,
+    #[allow(dead_code)] While<(Not<Str<'*', '/'>>, AnyChar)>,
     Str<'*', '/'>,
 );
 
