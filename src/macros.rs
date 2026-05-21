@@ -18,6 +18,7 @@ pub struct Macros {
 }
 
 impl Macros {
+    #[allow(clippy::question_mark)]
     pub fn parse(&mut self, parser: &mut Parser) -> Option<()> {
         while parser.peek_char() == Some('@') {
             if let Some(m) = parser.parse::<VolumeMacro>() {
