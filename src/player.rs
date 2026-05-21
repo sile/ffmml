@@ -49,7 +49,7 @@ impl MusicPlayer {
     }
 
     /// Returns an iterator that iterates over all of the playing channels.
-    pub fn channels(&self) -> impl '_ + Iterator<Item = ChannelState> {
+    pub fn channels(&self) -> impl '_ + Iterator<Item = ChannelState<'_>> {
         self.channels
             .iter()
             .map(|(name, player)| ChannelState::new(*name, player))
@@ -270,7 +270,7 @@ impl ChannelPlayer {
             if frame_index == 0 {
                 self.oscillator.set_frequency(note, octave, detune);
             }
-            if frame_index % usize::from(speed) == 0 {
+            if frame_index.is_multiple_of(usize::from(speed)) {
                 self.oscillator.sweep_frequency(depth);
             }
         } else {
