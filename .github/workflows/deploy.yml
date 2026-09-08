@@ -18,6 +18,11 @@ jobs:
       - run: rustup default stable
       - run: rustup target add wasm32-unknown-unknown
       - name: Run cargo build
+        # pagurus intentionally leaves some extern "C" symbols undefined; they are
+        # supplied by the wasm host (web/index.html) at runtime. Newer rust-lld treats
+        # undefined symbols as errors by default, so pass --allow-undefined to the linker.
+        env:
+          RUSTFLAGS: "-C link-arg=--allow-undefined"
         run: cargo build --release --target=wasm32-unknown-unknown -p ffmml_gui
       - name: Prepare static files
         run: |
